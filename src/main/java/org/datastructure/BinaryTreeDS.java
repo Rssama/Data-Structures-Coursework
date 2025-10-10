@@ -1,4 +1,4 @@
-package org.example;
+package org.datastructure;
 
 /**
  * 普通二叉树实现

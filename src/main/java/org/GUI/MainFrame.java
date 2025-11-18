@@ -27,7 +27,7 @@ public class MainFrame extends JFrame {
         // 创建不同数据结构的可视化面板
         LinkedListPanel linkedListPanel = new LinkedListPanel();
         StackPanel stackPanel = new StackPanel();
-        BinaryTreePanel binaryTreePanel = new BinaryTreePanel();
+        BSTPanel binaryTreePanel = new BSTPanel();
 
         mainPanel.add(linkedListPanel, "LinkedList");
         mainPanel.add(stackPanel, "Stack");

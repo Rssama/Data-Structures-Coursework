@@ -1,9 +1,9 @@
 package org.GUI;
 
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.io.Serializable;
 import java.util.Stack;
 
 public class StackPanel extends JPanel {
@@ -14,6 +14,33 @@ public class StackPanel extends JPanel {
     public StackPanel() {
         stack = new Stack<>();
         initializePanel();
+    }
+
+    // 序列化状态类
+    public static class StackState implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public java.util.List<Integer> stackElements;
+
+        public StackState(java.util.List<Integer> elements) {
+            this.stackElements = new java.util.ArrayList<>(elements);
+        }
+    }
+
+    // 获取当前状态
+    public StackState getCurrentState() {
+        return new StackState(stack);
+    }
+
+    // 从状态恢复
+    public void restoreFromState(StackState state) {
+        if (state == null) return;
+
+        stack.clear();
+        for (Integer value : state.stackElements) {
+            stack.push(value);
+        }
+        repaint();
+        log("从保存状态恢复栈，元素数: " + stack.size());
     }
 
     private void initializePanel() {

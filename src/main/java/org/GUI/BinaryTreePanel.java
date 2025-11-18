@@ -3,6 +3,7 @@ package org.GUI;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.ArrayList;
@@ -32,6 +33,66 @@ public class BinaryTreePanel extends JPanel {
 
     public BinaryTreePanel() {
         initializePanel();
+    }
+
+    // 序列化状态类
+    public static class BinaryTreeState implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public List<Integer> nodeValues; // 层序遍历的节点值
+
+        public BinaryTreeState(List<Integer> values) {
+            this.nodeValues = new ArrayList<>(values);
+        }
+    }
+
+    // 获取当前状态（层序遍历）
+    public BinaryTreeState getCurrentState() {
+        List<Integer> values = new ArrayList<>();
+        if (root != null) {
+            Queue<TreeNode> queue = new LinkedList<>();
+            queue.offer(root);
+            while (!queue.isEmpty()) {
+                TreeNode current = queue.poll();
+                values.add(current.value);
+                if (current.left != null) queue.offer(current.left);
+                if (current.right != null) queue.offer(current.right);
+            }
+        }
+        return new BinaryTreeState(values);
+    }
+
+    // 从状态恢复（层序构建）
+    public void restoreFromState(BinaryTreeState state) {
+        if (state == null || state.nodeValues.isEmpty()) {
+            root = null;
+            repaint();
+            return;
+        }
+
+        // 使用层序构建恢复树
+        List<TreeNode> nodes = new ArrayList<>();
+        for (Integer value : state.nodeValues) {
+            nodes.add(new TreeNode(value));
+        }
+
+        // 构建树结构
+        for (int i = 0; i < nodes.size(); i++) {
+            TreeNode node = nodes.get(i);
+            int leftIndex = 2 * i + 1;
+            int rightIndex = 2 * i + 2;
+
+            if (leftIndex < nodes.size()) {
+                node.left = nodes.get(leftIndex);
+            }
+            if (rightIndex < nodes.size()) {
+                node.right = nodes.get(rightIndex);
+            }
+        }
+
+        root = nodes.get(0);
+        resetTraversal();
+        repaint();
+        log("从保存状态恢复二叉树，节点数: " + state.nodeValues.size());
     }
 
     private void initializePanel() {
@@ -521,8 +582,9 @@ public class BinaryTreePanel extends JPanel {
         g2d.drawString("根节点", startX + 20, startY + 12);
     }
 
-    // 二叉树节点类
-    private static class TreeNode {
+    // 二叉树节点类 - 实现序列化
+    private static class TreeNode implements Serializable {
+        private static final long serialVersionUID = 1L;
         int value;
         TreeNode left;
         TreeNode right;

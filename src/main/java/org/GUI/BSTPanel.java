@@ -3,6 +3,7 @@ package org.GUI;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +34,43 @@ public class BSTPanel extends JPanel {
 
     public BSTPanel() {
         initializePanel();
+    }
+
+    // 序列化状态类
+    public static class BSTState implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public List<Integer> nodeValues;
+
+        public BSTState(List<Integer> values) {
+            this.nodeValues = new ArrayList<>(values);
+        }
+    }
+
+    // 获取当前状态（中序遍历）
+    public BSTState getCurrentState() {
+        List<Integer> values = new ArrayList<>();
+        inorderTraversalValues(root, values);
+        return new BSTState(values);
+    }
+
+    private void inorderTraversalValues(BSTNode node, List<Integer> values) {
+        if (node == null) return;
+        inorderTraversalValues(node.left, values);
+        values.add(node.value);
+        inorderTraversalValues(node.right, values);
+    }
+
+    // 从状态恢复
+    public void restoreFromState(BSTState state) {
+        if (state == null) return;
+
+        root = null;
+        for (Integer value : state.nodeValues) {
+            root = insertBST(root, value);
+        }
+        resetSearch();
+        repaint();
+        log("从保存状态恢复二叉搜索树，节点数: " + state.nodeValues.size());
     }
 
     private void initializePanel() {
@@ -586,8 +624,9 @@ public class BSTPanel extends JPanel {
         g2d.drawString("根节点", startX + 20, startY + 12);
     }
 
-    // 二叉搜索树节点类
-    private static class BSTNode {
+    // 二叉搜索树节点类 - 实现序列化
+    private static class BSTNode implements Serializable {
+        private static final long serialVersionUID = 1L;
         int value;
         BSTNode left;
         BSTNode right;

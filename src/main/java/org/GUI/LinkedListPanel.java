@@ -3,6 +3,7 @@ package org.GUI;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,6 +16,37 @@ public class LinkedListPanel extends JPanel {
     public LinkedListPanel() {
         nodes = new ArrayList<>();
         initializePanel();
+    }
+
+    // 序列化状态类
+    public static class LinkedListState implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public List<Integer> nodeValues;
+
+        public LinkedListState(List<Integer> values) {
+            this.nodeValues = new ArrayList<>(values);
+        }
+    }
+
+    // 获取当前状态
+    public LinkedListState getCurrentState() {
+        List<Integer> values = new ArrayList<>();
+        for (Node node : nodes) {
+            values.add(node.value);
+        }
+        return new LinkedListState(values);
+    }
+
+    // 从状态恢复
+    public void restoreFromState(LinkedListState state) {
+        if (state == null) return;
+
+        nodes.clear();
+        for (Integer value : state.nodeValues) {
+            nodes.add(new Node(value));
+        }
+        repaint();
+        log("从保存状态恢复链表，节点数: " + nodes.size());
     }
 
     private void initializePanel() {
@@ -261,8 +293,9 @@ public class LinkedListPanel extends JPanel {
         g2d.drawLine(x2, y2, x4, y4);
     }
 
-    // 内部节点类
-    private static class Node {
+    // 内部节点类 - 实现序列化
+    private static class Node implements Serializable {
+        private static final long serialVersionUID = 1L;
         int value;
 
         Node(int value) {

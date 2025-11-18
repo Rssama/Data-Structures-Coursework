@@ -166,35 +166,40 @@ public class DataStructureVisualizer extends JFrame {
             try (ObjectOutputStream oos = new ObjectOutputStream(
                     new BufferedOutputStream(new FileOutputStream(file)))) {
 
-                // 创建保存数据对象
-                StructureSaveData saveData = new StructureSaveData();
-                saveData.setPanelType(currentPanelName);
-                saveData.setTimestamp(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
-
-                // 根据不同面板类型保存相应数据
+                // 根据当前面板类型获取状态
+                Object state = null;
                 switch (currentPanelName) {
                     case "LinkedList":
-                        saveLinkedListData(saveData, (LinkedListPanel) currentActivePanel);
+                        state = ((LinkedListPanel) currentActivePanel).getCurrentState();
                         break;
                     case "Stack":
-                        saveStackData(saveData, (StackPanel) currentActivePanel);
+                        state = ((StackPanel) currentActivePanel).getCurrentState();
                         break;
                     case "BinaryTree":
-                        saveBinaryTreeData(saveData, (BinaryTreePanel) currentActivePanel);
+                        state = ((BinaryTreePanel) currentActivePanel).getCurrentState();
                         break;
                     case "BST":
-                        saveBSTData(saveData, (BSTPanel) currentActivePanel);
+                        state = ((BSTPanel) currentActivePanel).getCurrentState();
                         break;
                     case "HuffmanTree":
-                        saveHuffmanTreeData(saveData, (HuffmanTreePanel) currentActivePanel);
+                        state = ((HuffmanTreePanel) currentActivePanel).getCurrentState();
                         break;
                     case "AVLTree":
-                        saveAVLTreeData(saveData, (AVLPanel) currentActivePanel);
+                        state = ((AVLPanel) currentActivePanel).getCurrentState();
                         break;
                 }
 
-                oos.writeObject(saveData);
-                logStatus("数据结构已保存到: " + file.getName());
+                if (state != null) {
+                    StructureSaveData saveData = new StructureSaveData();
+                    saveData.setPanelType(currentPanelName);
+                    saveData.setTimestamp(LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+                    saveData.setState(state);
+
+                    oos.writeObject(saveData);
+                    logStatus("数据结构已保存到: " + file.getName());
+                } else {
+                    logStatus("错误: 无法获取当前数据结构的状态");
+                }
 
             } catch (IOException ex) {
                 logStatus("保存失败: " + ex.getMessage());
@@ -226,29 +231,42 @@ public class DataStructureVisualizer extends JFrame {
 
                 StructureSaveData saveData = (StructureSaveData) ois.readObject();
                 String panelType = saveData.getPanelType();
+                Object state = saveData.getState();
 
                 // 切换到对应的面板
                 switchToPanel(panelType);
 
-                // 根据不同面板类型加载相应数据
+                // 根据面板类型恢复状态
                 switch (panelType) {
                     case "LinkedList":
-                        loadLinkedListData(saveData, (LinkedListPanel) currentActivePanel);
+                        if (state instanceof LinkedListPanel.LinkedListState) {
+                            ((LinkedListPanel) currentActivePanel).restoreFromState((LinkedListPanel.LinkedListState) state);
+                        }
                         break;
                     case "Stack":
-                        loadStackData(saveData, (StackPanel) currentActivePanel);
+                        if (state instanceof StackPanel.StackState) {
+                            ((StackPanel) currentActivePanel).restoreFromState((StackPanel.StackState) state);
+                        }
                         break;
                     case "BinaryTree":
-                        loadBinaryTreeData(saveData, (BinaryTreePanel) currentActivePanel);
+                        if (state instanceof BinaryTreePanel.BinaryTreeState) {
+                            ((BinaryTreePanel) currentActivePanel).restoreFromState((BinaryTreePanel.BinaryTreeState) state);
+                        }
                         break;
                     case "BST":
-                        loadBSTData(saveData, (BSTPanel) currentActivePanel);
+                        if (state instanceof BSTPanel.BSTState) {
+                            ((BSTPanel) currentActivePanel).restoreFromState((BSTPanel.BSTState) state);
+                        }
                         break;
                     case "HuffmanTree":
-                        loadHuffmanTreeData(saveData, (HuffmanTreePanel) currentActivePanel);
+                        if (state instanceof HuffmanTreePanel.HuffmanTreeState) {
+                            ((HuffmanTreePanel) currentActivePanel).restoreFromState((HuffmanTreePanel.HuffmanTreeState) state);
+                        }
                         break;
                     case "AVLTree":
-                        loadAVLTreeData(saveData, (AVLPanel) currentActivePanel);
+                        if (state instanceof AVLPanel.AVLTreeState) {
+                            ((AVLPanel) currentActivePanel).restoreFromState((AVLPanel.AVLTreeState) state);
+                        }
                         break;
                 }
 
@@ -268,69 +286,6 @@ public class DataStructureVisualizer extends JFrame {
                         JOptionPane.ERROR_MESSAGE);
             }
         }
-    }
-
-    // ================== 保存方法实现 ==================
-
-    private void saveLinkedListData(StructureSaveData saveData, LinkedListPanel panel) {
-        // 这里需要访问LinkedListPanel的内部状态
-        // 由于LinkedListPanel的节点列表是private的，我们需要添加getter方法或使用反射
-        // 这里简化处理，实际实现需要修改LinkedListPanel类
-        saveData.setData("linkedlist_data", "保存链表数据");
-    }
-
-    private void saveStackData(StructureSaveData saveData, StackPanel panel) {
-        saveData.setData("stack_data", "保存栈数据");
-    }
-
-    private void saveBinaryTreeData(StructureSaveData saveData, BinaryTreePanel panel) {
-        saveData.setData("binarytree_data", "保存二叉树数据");
-    }
-
-    private void saveBSTData(StructureSaveData saveData, BSTPanel panel) {
-        saveData.setData("bst_data", "保存二叉搜索树数据");
-    }
-
-    private void saveHuffmanTreeData(StructureSaveData saveData, HuffmanTreePanel panel) {
-        saveData.setData("huffman_data", "保存哈夫曼树数据");
-    }
-
-    private void saveAVLTreeData(StructureSaveData saveData, AVLPanel panel) {
-        saveData.setData("avl_data", "保存AVL树数据");
-    }
-
-    // ================== 加载方法实现 ==================
-
-    private void loadLinkedListData(StructureSaveData saveData, LinkedListPanel panel) {
-        // 加载链表数据
-        Object data = saveData.getData("linkedlist_data");
-        // 实现具体加载逻辑
-        panel.repaint();
-    }
-
-    private void loadStackData(StructureSaveData saveData, StackPanel panel) {
-        Object data = saveData.getData("stack_data");
-        panel.repaint();
-    }
-
-    private void loadBinaryTreeData(StructureSaveData saveData, BinaryTreePanel panel) {
-        Object data = saveData.getData("binarytree_data");
-        panel.repaint();
-    }
-
-    private void loadBSTData(StructureSaveData saveData, BSTPanel panel) {
-        Object data = saveData.getData("bst_data");
-        panel.repaint();
-    }
-
-    private void loadHuffmanTreeData(StructureSaveData saveData, HuffmanTreePanel panel) {
-        Object data = saveData.getData("huffman_data");
-        panel.repaint();
-    }
-
-    private void loadAVLTreeData(StructureSaveData saveData, AVLPanel panel) {
-        Object data = saveData.getData("avl_data");
-        panel.repaint();
     }
 
     // ================== 辅助方法 ==================
@@ -527,10 +482,10 @@ class StructureSaveData implements Serializable {
 
     private String panelType;
     private String timestamp;
-    private Map<String, Object> dataMap;
+    private Object state; // 保存面板的状态对象
 
     public StructureSaveData() {
-        dataMap = new HashMap<>();
+        // 不再使用dataMap，直接使用state对象
     }
 
     // Getter和Setter方法
@@ -540,8 +495,13 @@ class StructureSaveData implements Serializable {
     public String getTimestamp() { return timestamp; }
     public void setTimestamp(String timestamp) { this.timestamp = timestamp; }
 
-    public void setData(String key, Object value) { dataMap.put(key, value); }
-    public Object getData(String key) { return dataMap.get(key); }
+    public Object getState() { return state; }
+    public void setState(Object state) { this.state = state; }
 
-    public Map<String, Object> getDataMap() { return dataMap; }
+    // 为了向后兼容，保留这些方法但标记为过时
+    @Deprecated
+    public void setData(String key, Object value) { }
+
+    @Deprecated
+    public Object getData(String key) { return null; }
 }

@@ -3,7 +3,10 @@ package org.GUI;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.util.*;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.PriorityQueue;
 
 /**
  * 动态构建哈夫曼树面板
@@ -22,6 +25,114 @@ public class HuffmanTreePanel extends JPanel {
 
     public HuffmanTreePanel() {
         initializePanel();
+    }
+
+    // 序列化状态类
+    public static class HuffmanTreeState implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public java.util.List<Integer> weights;
+        public java.util.List<HuffmanCode> codes;
+        public boolean buildingCompleted;
+
+        public HuffmanTreeState(java.util.List<Integer> weights, java.util.List<HuffmanCode> codes, boolean buildingCompleted) {
+            this.weights = weights != null ? new ArrayList<>(weights) : new ArrayList<>();
+            this.codes = codes != null ? new ArrayList<>(codes) : new ArrayList<>();
+            this.buildingCompleted = buildingCompleted;
+        }
+    }
+
+    // 获取当前状态
+    public HuffmanTreeState getCurrentState() {
+        java.util.List<Integer> weightList = new ArrayList<>();
+        boolean completed = false;
+
+        if (root != null) {
+            // 获取所有权重值
+            extractWeights(root, weightList);
+            completed = true;
+        } else if (constructionSteps != null && !constructionSteps.isEmpty()) {
+            // 如果正在构建过程中，保存当前权重
+            ConstructionStep step = constructionSteps.get(currentStep);
+            for (HuffmanNode node : step.nodes) {
+                if (node.left == null && node.right == null) {
+                    weightList.add(node.weight);
+                }
+            }
+            completed = (currentStep == constructionSteps.size() - 1);
+        }
+
+        return new HuffmanTreeState(weightList, huffmanCodes, completed);
+    }
+
+    private void extractWeights(HuffmanNode node, java.util.List<Integer> weights) {
+        if (node == null) return;
+        if (node.left == null && node.right == null) {
+            weights.add(node.weight);
+        }
+        extractWeights(node.left, weights);
+        extractWeights(node.right, weights);
+    }
+
+    // 从状态恢复
+    public void restoreFromState(HuffmanTreeState state) {
+        if (state == null || state.weights.isEmpty()) {
+            resetConstruction();
+            log("恢复状态为空或无效");
+            return;
+        }
+
+        try {
+            // 重置所有状态
+            resetConstruction();
+
+            // 使用权重重新构建哈夫曼树
+            if (state.buildingCompleted) {
+                // 直接构建完整的哈夫曼树
+                buildCompleteHuffmanTree(state.weights);
+                log("从保存状态恢复完整的哈夫曼树，权重数: " + state.weights.size());
+            } else {
+                // 准备构建过程
+                prepareConstructionWithWeights(state.weights);
+                log("从保存状态恢复哈夫曼树构建过程，权重数: " + state.weights.size());
+            }
+
+            // 恢复编码
+            if (state.codes != null && !state.codes.isEmpty()) {
+                huffmanCodes = new ArrayList<>(state.codes);
+                displayHuffmanCodes();
+            }
+
+            repaint();
+
+        } catch (Exception ex) {
+            log("恢复状态时发生错误: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    private void buildCompleteHuffmanTree(java.util.List<Integer> weights) {
+        if (weights == null || weights.isEmpty()) {
+            return;
+        }
+
+        // 使用优先队列构建哈夫曼树
+        PriorityQueue<HuffmanNode> queue = new PriorityQueue<>((a, b) -> Integer.compare(a.weight, b.weight));
+        for (int weight : weights) {
+            queue.offer(new HuffmanNode(weight));
+        }
+
+        while (queue.size() > 1) {
+            HuffmanNode left = queue.poll();
+            HuffmanNode right = queue.poll();
+            HuffmanNode parent = new HuffmanNode(left.weight + right.weight);
+            parent.left = left;
+            parent.right = right;
+            queue.offer(parent);
+        }
+
+        root = queue.poll();
+        generateHuffmanCodes();
+        isBuilding = false;
     }
 
     private void initializePanel() {
@@ -66,12 +177,25 @@ public class HuffmanTreePanel extends JPanel {
 
     private void prepareConstruction() {
         try {
-            String input = inputField.getText();
+            String input = inputField.getText().trim();
+            if (input.isEmpty()) {
+                log("错误: 请输入权重值");
+                return;
+            }
+
             String[] parts = input.split(",");
             java.util.List<Integer> weights = new ArrayList<>();
 
             for (String part : parts) {
-                weights.add(Integer.parseInt(part.trim()));
+                String trimmed = part.trim();
+                if (!trimmed.isEmpty()) {
+                    int weight = Integer.parseInt(trimmed);
+                    if (weight <= 0) {
+                        log("错误: 权重值必须为正整数");
+                        return;
+                    }
+                    weights.add(weight);
+                }
             }
 
             if (weights.size() < 2) {
@@ -79,6 +203,18 @@ public class HuffmanTreePanel extends JPanel {
                 return;
             }
 
+            prepareConstructionWithWeights(weights);
+
+        } catch (NumberFormatException ex) {
+            log("错误: 请输入有效的正整数，用逗号分隔");
+        } catch (Exception ex) {
+            log("系统错误: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    private void prepareConstructionWithWeights(java.util.List<Integer> weights) {
+        try {
             // 初始化构建步骤
             constructionSteps = new ArrayList<>();
             currentNodes = new ArrayList<>();
@@ -90,7 +226,9 @@ public class HuffmanTreePanel extends JPanel {
                 currentNodes.add(node);
                 forest.add(node);
             }
-            Collections.sort(currentNodes);
+
+            // 排序节点
+            Collections.sort(currentNodes, (a, b) -> Integer.compare(a.weight, b.weight));
 
             // 记录初始状态
             constructionSteps.add(new ConstructionStep(
@@ -99,31 +237,46 @@ public class HuffmanTreePanel extends JPanel {
                     "初始状态: " + getNodeWeights(currentNodes)
             ));
 
-            // 构建哈夫曼树
+            // 构建哈夫曼树步骤
             buildHuffmanTreeSteps();
 
             currentStep = 0;
             isBuilding = true;
 
-            log("哈夫曼树构建准备完成");
-            log("共有 " + constructionSteps.size() + " 个构建步骤");
-            log("点击'下一步'开始逐步构建");
+            ConstructionStep step = constructionSteps.get(currentStep);
+            currentNodes = step.nodes;
+            forest = step.forest;
 
             updateDisplay();
+            log("哈夫曼树构建准备完成，权重: " + weights);
+            log("使用'下一步'按钮开始构建过程");
 
-        } catch (NumberFormatException ex) {
-            log("请输入有效的数字，用逗号分隔");
+        } catch (Exception ex) {
+            log("准备构建过程时发生错误: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 
     private void buildHuffmanTreeSteps() {
-        PriorityQueue<HuffmanNode> queue = new PriorityQueue<>(currentNodes);
+        if (currentNodes == null || currentNodes.isEmpty()) {
+            return;
+        }
+
+        // 复制当前状态
+        java.util.List<HuffmanNode> queueList = new ArrayList<>(currentNodes);
         java.util.List<HuffmanNode> currentForest = new ArrayList<>(forest);
 
-        while (queue.size() > 1) {
+        while (queueList.size() > 1) {
+            // 排序以获取最小的两个节点
+            Collections.sort(queueList, (a, b) -> Integer.compare(a.weight, b.weight));
+
             // 取出两个最小的节点
-            HuffmanNode left = queue.poll();
-            HuffmanNode right = queue.poll();
+            HuffmanNode left = queueList.get(0);
+            HuffmanNode right = queueList.get(1);
+
+            // 从列表中移除这两个节点
+            queueList.remove(left);
+            queueList.remove(right);
 
             // 从森林中移除这两个节点
             currentForest.remove(left);
@@ -135,44 +288,45 @@ public class HuffmanTreePanel extends JPanel {
             parent.right = right;
 
             // 记录合并前的状态
-            java.util.List<HuffmanNode> currentState = new ArrayList<>(queue);
-            currentState.add(left);
-            currentState.add(right);
-            Collections.sort(currentState);
+            java.util.List<HuffmanNode> beforeMerge = new ArrayList<>(queueList);
+            beforeMerge.add(left);
+            beforeMerge.add(right);
+            Collections.sort(beforeMerge, (a, b) -> Integer.compare(a.weight, b.weight));
 
             constructionSteps.add(new ConstructionStep(
-                    new ArrayList<>(currentState),
+                    new ArrayList<>(beforeMerge),
                     new ArrayList<>(currentForest),
-                    "合并节点: " + left.weight + " + " + right.weight + " = " + parent.weight
+                    "准备合并: " + left.weight + " + " + right.weight
             ));
 
             // 添加新节点到队列和森林
-            queue.offer(parent);
+            queueList.add(parent);
             currentForest.add(parent);
 
             // 记录合并后的状态
-            currentState = new ArrayList<>(queue);
-            Collections.sort(currentState);
+            Collections.sort(queueList, (a, b) -> Integer.compare(a.weight, b.weight));
             constructionSteps.add(new ConstructionStep(
-                    new ArrayList<>(currentState),
+                    new ArrayList<>(queueList),
                     new ArrayList<>(currentForest),
-                    "添加新节点: " + parent.weight
+                    "合并完成: " + left.weight + " + " + right.weight + " = " + parent.weight
             ));
         }
 
-        root = queue.poll();
-        constructionSteps.add(new ConstructionStep(
-                Collections.singletonList(root),
-                Collections.singletonList(root),
-                "构建完成! 根节点权重: " + root.weight
-        ));
+        if (!queueList.isEmpty()) {
+            root = queueList.get(0);
+            constructionSteps.add(new ConstructionStep(
+                    java.util.Collections.singletonList(root),
+                    java.util.Collections.singletonList(root),
+                    "构建完成! 根节点权重: " + root.weight
+            ));
 
-        // 生成哈夫曼编码
-        generateHuffmanCodes();
+            // 生成哈夫曼编码
+            generateHuffmanCodes();
+        }
     }
 
     private void nextStep() {
-        if (!isBuilding || constructionSteps == null) {
+        if (!isBuilding || constructionSteps == null || constructionSteps.isEmpty()) {
             log("请先点击'开始构建'准备哈夫曼树");
             return;
         }
@@ -188,6 +342,7 @@ public class HuffmanTreePanel extends JPanel {
             if (currentStep == constructionSteps.size() - 1) {
                 log("✓ 哈夫曼树构建完成!");
                 displayHuffmanCodes();
+                isBuilding = false;
             }
         } else {
             log("已经是最后一步了");
@@ -195,7 +350,7 @@ public class HuffmanTreePanel extends JPanel {
     }
 
     private void prevStep() {
-        if (!isBuilding || constructionSteps == null) {
+        if (!isBuilding || constructionSteps == null || constructionSteps.isEmpty()) {
             log("请先点击'开始构建'准备哈夫曼树");
             return;
         }
@@ -213,7 +368,7 @@ public class HuffmanTreePanel extends JPanel {
     }
 
     private void completeConstruction() {
-        if (!isBuilding || constructionSteps == null) {
+        if (!isBuilding || constructionSteps == null || constructionSteps.isEmpty()) {
             log("请先点击'开始构建'准备哈夫曼树");
             return;
         }
@@ -226,6 +381,7 @@ public class HuffmanTreePanel extends JPanel {
         log(step.description);
         updateDisplay();
         displayHuffmanCodes();
+        isBuilding = false;
     }
 
     private void resetConstruction() {
@@ -243,8 +399,10 @@ public class HuffmanTreePanel extends JPanel {
 
     private void generateHuffmanCodes() {
         huffmanCodes = new ArrayList<>();
-        generateCodes(root, "", huffmanCodes);
-        Collections.sort(huffmanCodes, (a, b) -> Integer.compare(a.weight, b.weight));
+        if (root != null) {
+            generateCodes(root, "", huffmanCodes);
+            Collections.sort(huffmanCodes, (a, b) -> Integer.compare(a.weight, b.weight));
+        }
     }
 
     private void generateCodes(HuffmanNode node, String code, java.util.List<HuffmanCode> codes) {
@@ -260,12 +418,16 @@ public class HuffmanTreePanel extends JPanel {
     }
 
     private void displayHuffmanCodes() {
-        if (huffmanCodes == null) return;
+        if (huffmanCodes == null || huffmanCodes.isEmpty()) {
+            log("未生成哈夫曼编码");
+            return;
+        }
 
         log("=== 哈夫曼编码 ===");
         for (HuffmanCode hc : huffmanCodes) {
             log("权重 " + hc.weight + ": " + hc.code);
         }
+        log("=================");
     }
 
     private void log(String message) {
@@ -278,6 +440,10 @@ public class HuffmanTreePanel extends JPanel {
     }
 
     private String getNodeWeights(java.util.List<HuffmanNode> nodes) {
+        if (nodes == null || nodes.isEmpty()) {
+            return "[]";
+        }
+
         StringBuilder sb = new StringBuilder();
         sb.append("[");
         for (int i = 0; i < nodes.size(); i++) {
@@ -299,7 +465,7 @@ public class HuffmanTreePanel extends JPanel {
         g2d.setFont(new Font("宋体", Font.BOLD, 16));
         g2d.drawString("哈夫曼树 - 动态构建过程", 20, 30);
 
-        if (constructionSteps != null && currentStep < constructionSteps.size()) {
+        if (constructionSteps != null && !constructionSteps.isEmpty() && currentStep < constructionSteps.size()) {
             g2d.setColor(Color.BLACK);
             g2d.setFont(new Font("宋体", Font.PLAIN, 14));
             g2d.drawString("步骤 " + (currentStep + 1) + "/" + constructionSteps.size(), 20, 60);
@@ -322,6 +488,14 @@ public class HuffmanTreePanel extends JPanel {
         }
 
         // 初始状态
+        else if (currentNodes != null && !currentNodes.isEmpty()) {
+            drawCurrentNodes(g2d);
+            g2d.setColor(Color.BLUE);
+            g2d.setFont(new Font("宋体", Font.PLAIN, 14));
+            g2d.drawString("请点击'开始构建'按钮开始构建过程", getWidth() / 2 - 120, 120);
+        }
+
+        // 没有任何内容
         else {
             g2d.setColor(Color.RED);
             g2d.setFont(new Font("宋体", Font.BOLD, 16));
@@ -339,7 +513,7 @@ public class HuffmanTreePanel extends JPanel {
         g2d.setFont(new Font("宋体", Font.BOLD, 14));
         g2d.drawString("当前森林中的树:", 20, 110);
 
-        int treeSpacing = getWidth() / (forest.size() + 1);
+        int treeSpacing = Math.max(getWidth() / (forest.size() + 1), 150);
         int startY = 150;
 
         for (int i = 0; i < forest.size(); i++) {
@@ -347,7 +521,7 @@ public class HuffmanTreePanel extends JPanel {
             int centerX = treeSpacing * (i + 1);
 
             // 绘制单棵树
-            drawSingleTree(g2d, treeRoot, centerX, startY, treeSpacing / 3);
+            drawSingleTree(g2d, treeRoot, centerX, startY, Math.min(treeSpacing / 3, 100));
 
             // 在树下方显示权重
             g2d.setColor(Color.BLACK);
@@ -364,14 +538,10 @@ public class HuffmanTreePanel extends JPanel {
     private void drawSingleTree(Graphics2D g2d, HuffmanNode node, int x, int y, int hGap) {
         int radius = 20;
 
-        // 计算树的高度
-        int treeHeight = calculateTreeHeight(node);
-        int vGap = 60; // 垂直间距
-
         // 绘制左子树
         if (node.left != null) {
             int childX = x - hGap;
-            int childY = y + vGap;
+            int childY = y + 60;
             g2d.setColor(Color.BLACK);
             g2d.drawLine(x, y + radius, childX, childY - radius);
             drawSingleTree(g2d, node.left, childX, childY, hGap / 2);
@@ -380,7 +550,7 @@ public class HuffmanTreePanel extends JPanel {
         // 绘制右子树
         if (node.right != null) {
             int childX = x + hGap;
-            int childY = y + vGap;
+            int childY = y + 60;
             g2d.setColor(Color.BLACK);
             g2d.drawLine(x, y + radius, childX, childY - radius);
             drawSingleTree(g2d, node.right, childX, childY, hGap / 2);
@@ -412,12 +582,11 @@ public class HuffmanTreePanel extends JPanel {
         }
     }
 
-    private int calculateTreeHeight(HuffmanNode node) {
-        if (node == null) return 0;
-        return 1 + Math.max(calculateTreeHeight(node.left), calculateTreeHeight(node.right));
-    }
-
     private void drawCurrentNodes(Graphics2D g2d) {
+        if (currentNodes == null || currentNodes.isEmpty()) {
+            return;
+        }
+
         int startY = getHeight() - 150;
 
         g2d.setColor(Color.BLUE);
@@ -426,11 +595,14 @@ public class HuffmanTreePanel extends JPanel {
 
         int startX = 50;
         int nodeSpacing = 60;
+        int maxNodesPerRow = Math.max(1, (getWidth() - 100) / nodeSpacing);
 
         for (int i = 0; i < currentNodes.size(); i++) {
             HuffmanNode node = currentNodes.get(i);
-            int x = startX + i * nodeSpacing;
-            int y = startY;
+            int row = i / maxNodesPerRow;
+            int col = i % maxNodesPerRow;
+            int x = startX + col * nodeSpacing;
+            int y = startY + row * 60;
 
             // 绘制节点
             if (node.left == null && node.right == null) {
@@ -495,7 +667,7 @@ public class HuffmanTreePanel extends JPanel {
     }
 
     private void drawCodes(Graphics2D g2d) {
-        if (huffmanCodes == null) return;
+        if (huffmanCodes == null || huffmanCodes.isEmpty()) return;
 
         g2d.setColor(Color.BLUE);
         g2d.setFont(new Font("宋体", Font.BOLD, 14));
@@ -505,11 +677,13 @@ public class HuffmanTreePanel extends JPanel {
         for (HuffmanCode hc : huffmanCodes) {
             g2d.drawString("权重 " + hc.weight + ": " + hc.code, 20, yPos);
             yPos += 20;
+            if (yPos > getHeight() - 20) break; // 防止超出面板
         }
     }
 
-    // 哈夫曼树节点类
-    private static class HuffmanNode implements Comparable<HuffmanNode> {
+    // 哈夫曼树节点类 - 修复序列化问题
+    private static class HuffmanNode implements Serializable {
+        private static final long serialVersionUID = 1L;
         int weight;
         HuffmanNode left;
         HuffmanNode right;
@@ -519,37 +693,34 @@ public class HuffmanTreePanel extends JPanel {
         }
 
         @Override
-        public int compareTo(HuffmanNode other) {
-            return Integer.compare(this.weight, other.weight);
-        }
-
-        @Override
         public String toString() {
             return String.valueOf(weight);
         }
     }
 
-    // 构建步骤类
-    private static class ConstructionStep {
+    // 构建步骤类 - 实现序列化
+    private static class ConstructionStep implements Serializable {
+        private static final long serialVersionUID = 1L;
         java.util.List<HuffmanNode> nodes;
         java.util.List<HuffmanNode> forest;
         String description;
 
         ConstructionStep(java.util.List<HuffmanNode> nodes, java.util.List<HuffmanNode> forest, String description) {
-            this.nodes = nodes;
-            this.forest = forest;
-            this.description = description;
+            this.nodes = nodes != null ? new ArrayList<>(nodes) : new ArrayList<>();
+            this.forest = forest != null ? new ArrayList<>(forest) : new ArrayList<>();
+            this.description = description != null ? description : "";
         }
     }
 
-    // 哈夫曼编码类
-    private static class HuffmanCode {
+    // 哈夫曼编码类 - 实现序列化
+    public static class HuffmanCode implements Serializable {
+        private static final long serialVersionUID = 1L;
         int weight;
         String code;
 
-        HuffmanCode(int weight, String code) {
+        public HuffmanCode(int weight, String code) {
             this.weight = weight;
-            this.code = code;
+            this.code = code != null ? code : "";
         }
     }
 }

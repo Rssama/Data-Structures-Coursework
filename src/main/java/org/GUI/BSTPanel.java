@@ -60,14 +60,23 @@ public class BSTPanel extends JPanel {
         inorderTraversalValues(node.right, values);
     }
 
-    // 从状态恢复
+    // 从状态恢复 - 修复：正确构建BST
     public void restoreFromState(BSTState state) {
-        if (state == null) return;
+        if (state == null || state.nodeValues == null || state.nodeValues.isEmpty()) {
+            root = null;
+            resetSearch();
+            repaint();
+            return;
+        }
 
+        // 清空当前树
         root = null;
+
+        // 重新插入所有节点来构建BST
         for (Integer value : state.nodeValues) {
             root = insertBST(root, value);
         }
+
         resetSearch();
         repaint();
         log("从保存状态恢复二叉搜索树，节点数: " + state.nodeValues.size());
@@ -94,12 +103,17 @@ public class BSTPanel extends JPanel {
         JButton deleteButton = new JButton("删除节点");
         JButton clearButton = new JButton("清空树");
         JButton traverseButton = new JButton("中序遍历");
+        // 添加转换按钮
+        JButton toBinaryTreeButton = new JButton("转为普通二叉树");
+        JButton toLinkedListButton = new JButton("转为链表");
 
         addButton.addActionListener(this::addNode);
         searchButton.addActionListener(e -> startAnimatedSearch());
         deleteButton.addActionListener(e -> deleteNode());
         clearButton.addActionListener(e -> clearTree());
         traverseButton.addActionListener(e -> startTraversal());
+        toBinaryTreeButton.addActionListener(e -> convertToBinaryTree());
+        toLinkedListButton.addActionListener(e -> convertToLinkedList());
 
         panel.add(new JLabel("值:"));
         panel.add(valueField);
@@ -108,6 +122,8 @@ public class BSTPanel extends JPanel {
         panel.add(deleteButton);
         panel.add(traverseButton);
         panel.add(clearButton);
+        panel.add(toBinaryTreeButton);
+        panel.add(toLinkedListButton);
 
         return panel;
     }
@@ -355,6 +371,94 @@ public class BSTPanel extends JPanel {
             node = node.left;
         }
         return node;
+    }
+
+    /**
+     * 将BST转换为普通二叉树
+     */
+    private void convertToBinaryTree() {
+        if (root == null) {
+            log("BST为空，无法转换");
+            return;
+        }
+
+        try {
+            // 获取BST的节点值（中序遍历）
+            List<Integer> values = new ArrayList<>();
+            inorderTraversalValues(root, values);
+
+            // 构建普通二叉树状态
+            BinaryTreePanel.BinaryTreeState binaryTreeState =
+                    new BinaryTreePanel.BinaryTreeState(values);
+
+            // 切换到普通二叉树面板并恢复状态
+            JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            if (topFrame instanceof DataStructureVisualizer) {
+                DataStructureVisualizer mainFrame = (DataStructureVisualizer) topFrame;
+
+                // 直接获取目标面板并恢复状态
+                BinaryTreePanel binaryTreePanel = (BinaryTreePanel) mainFrame.getPanel("BinaryTree");
+                if (binaryTreePanel != null) {
+                    mainFrame.switchToPanel("BinaryTree");
+                    // 等待面板切换完成
+                    SwingUtilities.invokeLater(() -> {
+                        binaryTreePanel.restoreFromState(binaryTreeState);
+                        log("✓ BST已转换为普通二叉树，节点数: " + values.size());
+                    });
+                    return;
+                }
+            }
+
+            log("转换完成，请切换到二叉树构建面板查看结果");
+
+        } catch (Exception ex) {
+            log("转换失败: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * 将BST转换为链表
+     */
+    private void convertToLinkedList() {
+        if (root == null) {
+            log("BST为空，无法转换");
+            return;
+        }
+
+        try {
+            // 获取BST的节点值（中序遍历得到有序序列）
+            List<Integer> values = new ArrayList<>();
+            inorderTraversalValues(root, values);
+
+            // 创建链表状态
+            LinkedListPanel.LinkedListState linkedListState =
+                    new LinkedListPanel.LinkedListState(values);
+
+            // 切换到链表面板并恢复状态
+            JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            if (topFrame instanceof DataStructureVisualizer) {
+                DataStructureVisualizer mainFrame = (DataStructureVisualizer) topFrame;
+
+                // 直接获取目标面板并恢复状态
+                LinkedListPanel linkedListPanel = (LinkedListPanel) mainFrame.getPanel("LinkedList");
+                if (linkedListPanel != null) {
+                    mainFrame.switchToPanel("LinkedList");
+                    // 等待面板切换完成
+                    SwingUtilities.invokeLater(() -> {
+                        linkedListPanel.restoreFromState(linkedListState);
+                        log("✓ BST已转换为链表，节点数: " + values.size());
+                    });
+                    return;
+                }
+            }
+
+            log("转换完成，请切换到链表结构面板查看结果");
+
+        } catch (Exception ex) {
+            log("转换失败: " + ex.getMessage());
+            ex.printStackTrace();
+        }
     }
 
     private void resetSearch() {

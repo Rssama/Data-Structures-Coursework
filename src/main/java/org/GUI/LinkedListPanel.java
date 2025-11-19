@@ -6,6 +6,7 @@ import java.awt.event.ActionEvent;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 public class LinkedListPanel extends JPanel {
     private List<Node> nodes;
@@ -37,9 +38,13 @@ public class LinkedListPanel extends JPanel {
         return new LinkedListState(values);
     }
 
-    // 从状态恢复
+    // 从状态恢复 - 修复：确保正确构建链表
     public void restoreFromState(LinkedListState state) {
-        if (state == null) return;
+        if (state == null || state.nodeValues == null) {
+            nodes.clear();
+            repaint();
+            return;
+        }
 
         nodes.clear();
         for (Integer value : state.nodeValues) {
@@ -74,12 +79,15 @@ public class LinkedListPanel extends JPanel {
         JButton deleteButton = new JButton("删除节点");
         JButton searchButton = new JButton("查找节点");
         JButton clearButton = new JButton("清空链表");
+        // 添加转换按钮
+        JButton toBSTButton = new JButton("转为BST");
 
         addButton.addActionListener(this::addNode);
         insertButton.addActionListener(this::insertNode);
         deleteButton.addActionListener(this::deleteNode);
         searchButton.addActionListener(this::searchNode);
         clearButton.addActionListener(e -> clearList());
+        toBSTButton.addActionListener(e -> convertToBST());
 
         panel.add(new JLabel("值:"));
         panel.add(valueField);
@@ -90,6 +98,7 @@ public class LinkedListPanel extends JPanel {
         panel.add(deleteButton);
         panel.add(searchButton);
         panel.add(clearButton);
+        panel.add(toBSTButton);
 
         return panel;
     }
@@ -191,6 +200,67 @@ public class LinkedListPanel extends JPanel {
         } catch (Exception ex) {
             log("系统错误: " + ex.getMessage());
         }
+    }
+
+    /**
+     * 将链表转换为BST
+     */
+    private void convertToBST() {
+        if (nodes.isEmpty()) {
+            log("链表为空，无法转换");
+            return;
+        }
+
+        try {
+            // 获取链表的值
+            List<Integer> values = new ArrayList<>();
+            for (Node node : nodes) {
+                values.add(node.value);
+            }
+
+            // 对值进行排序（BST需要有序）
+            Collections.sort(values);
+
+            // 创建BST状态
+            BSTPanel.BSTState bstState = new BSTPanel.BSTState(values);
+
+            // 切换到BST面板并恢复状态
+            JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            if (topFrame instanceof DataStructureVisualizer) {
+                DataStructureVisualizer mainFrame = (DataStructureVisualizer) topFrame;
+
+                // 直接获取目标面板并恢复状态
+                BSTPanel bstPanel = (BSTPanel) mainFrame.getPanel("BST");
+                if (bstPanel != null) {
+                    mainFrame.switchToPanel("BST");
+                    // 等待面板切换完成
+                    SwingUtilities.invokeLater(() -> {
+                        bstPanel.restoreFromState(bstState);
+                        log("✓ 链表已转换为BST，节点数: " + values.size());
+                    });
+                    return;
+                }
+            }
+
+            log("转换完成，请切换到二叉搜索树面板查看结果");
+
+        } catch (Exception ex) {
+            log("转换失败: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    // 辅助方法：查找BSTPanel
+    private BSTPanel findBSTPanel(Container container) {
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof BSTPanel) {
+                return (BSTPanel) comp;
+            } else if (comp instanceof Container) {
+                BSTPanel result = findBSTPanel((Container) comp);
+                if (result != null) return result;
+            }
+        }
+        return null;
     }
 
     private void clearList() {

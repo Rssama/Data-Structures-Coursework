@@ -22,6 +22,10 @@ public class DataStructureVisualizer extends JFrame {
     private JPanel currentActivePanel;
     private String currentPanelName;
 
+    public JPanel getPanel(String panelKey) {
+        return panels.get(panelKey);
+    }
+
     public DataStructureVisualizer() {
         initializeUI();
     }
@@ -290,13 +294,17 @@ public class DataStructureVisualizer extends JFrame {
 
     // ================== 辅助方法 ==================
 
-    private void switchToPanel(String panelType) {
+    /**
+     * 切换到指定面板 - 修改为public方法
+     */
+    public void switchToPanel(String panelKey) {
         for (int i = 0; i < tabbedPane.getTabCount(); i++) {
             String title = tabbedPane.getTitleAt(i);
-            if (panelType.equals(getPanelKeyFromTitle(title))) {
+            if (panelKey.equals(getPanelKeyFromTitle(title))) {
                 tabbedPane.setSelectedIndex(i);
-                currentPanelName = panelType;
-                currentActivePanel = panels.get(panelType);
+                currentPanelName = panelKey;
+                currentActivePanel = panels.get(panelKey);
+                logStatus("切换到: " + title);
                 break;
             }
         }
@@ -402,7 +410,13 @@ public class DataStructureVisualizer extends JFrame {
                         "  • 添加节点: 输入值构建二叉搜索树\n" +
                         "  • 动画查找: 输入值，显示从根节点到目标的完整查找路径\n" +
                         "  • 删除节点: 输入值从树中删除节点\n" +
-                        "  • 清空树: 移除所有节点\n\n" +
+                        "  • 清空树: 移除所有节点\n" +
+                        "  • 转为普通二叉树: 将BST转换为普通二叉树\n" +
+                        "  • 转为链表: 将BST转换为链表\n\n" +
+                        "普通二叉树:\n" +
+                        "  • 转为BST: 将普通二叉树转换为二叉搜索树\n\n" +
+                        "链表结构:\n" +
+                        "  • 转为BST: 将链表转换为二叉搜索树\n\n" +
                         "哈夫曼树(动态构建):\n" +
                         "  • 开始构建: 输入权重值(逗号分隔)，准备构建过程\n" +
                         "  • 上一步/下一步: 手动控制构建过程，查看每一步的合并操作\n" +
@@ -421,6 +435,7 @@ public class DataStructureVisualizer extends JFrame {
                         "增强功能:\n" +
                         "  • 输入验证: 全面的输入验证和错误处理\n" +
                         "  • 遍历动画: 增强的变色效果显示遍历顺序\n" +
+                        "  • 数据结构转换: BST与普通二叉树、链表之间的相互转换\n" +
                         "  • 健壮性: 异常处理和边界条件检查";
 
         JTextArea helpArea = new JTextArea(helpMessage);
@@ -439,6 +454,7 @@ public class DataStructureVisualizer extends JFrame {
                 "数据结构可视化模拟器 v2.0\n\n" +
                         "功能特点:\n" +
                         "• 六种数据结构可视化: 链表、栈、二叉树、BST、哈夫曼树、AVL树\n" +
+                        "• 数据结构转换: BST与普通二叉树、链表之间的相互转换\n" +
                         "• 动画演示: 遍历过程、查找路径、平衡操作\n" +
                         "• 数据持久化: 支持保存和加载数据结构状态\n" +
                         "• 健壮性设计: 全面的输入验证和异常处理\n" +

@@ -8,6 +8,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 /**
  * 二叉树构建面板 - 修复根节点变色问题
@@ -61,13 +62,17 @@ public class BinaryTreePanel extends JPanel {
         return new BinaryTreeState(values);
     }
 
-    // 从状态恢复（层序构建）
+    // 从状态恢复（层序构建）- 修复：确保正确构建树结构
     public void restoreFromState(BinaryTreeState state) {
-        if (state == null || state.nodeValues.isEmpty()) {
+        if (state == null || state.nodeValues == null || state.nodeValues.isEmpty()) {
             root = null;
+            resetTraversal();
             repaint();
             return;
         }
+
+        // 清空当前树
+        root = null;
 
         // 使用层序构建恢复树
         List<TreeNode> nodes = new ArrayList<>();
@@ -89,7 +94,7 @@ public class BinaryTreePanel extends JPanel {
             }
         }
 
-        root = nodes.get(0);
+        root = nodes.isEmpty() ? null : nodes.get(0);
         resetTraversal();
         repaint();
         log("从保存状态恢复二叉树，节点数: " + state.nodeValues.size());
@@ -117,6 +122,8 @@ public class BinaryTreePanel extends JPanel {
         JButton inorderButton = new JButton("中序遍历");
         JButton postorderButton = new JButton("后序遍历");
         JButton clearButton = new JButton("清空树");
+        // 添加转换按钮
+        JButton toBSTButton = new JButton("转为BST");
 
         addButton.addActionListener(this::addNode);
         levelOrderButton.addActionListener(e -> buildLevelOrderTree());
@@ -124,6 +131,7 @@ public class BinaryTreePanel extends JPanel {
         inorderButton.addActionListener(e -> startInorderTraversal());
         postorderButton.addActionListener(e -> startPostorderTraversal());
         clearButton.addActionListener(e -> clearTree());
+        toBSTButton.addActionListener(e -> convertToBST());
 
         panel.add(new JLabel("值:"));
         panel.add(valueField);
@@ -133,6 +141,7 @@ public class BinaryTreePanel extends JPanel {
         panel.add(inorderButton);
         panel.add(postorderButton);
         panel.add(clearButton);
+        panel.add(toBSTButton);
 
         return panel;
     }
@@ -232,7 +241,7 @@ public class BinaryTreePanel extends JPanel {
                 }
             }
 
-            root = nodes.get(0);
+            root = nodes.isEmpty() ? null : nodes.get(0);
             valueField.setText("");
             resetTraversal();
             repaint();
@@ -348,6 +357,73 @@ public class BinaryTreePanel extends JPanel {
         postorderTraversal(node.left, path);
         postorderTraversal(node.right, path);
         path.add(node);
+    }
+
+    /**
+     * 将普通二叉树转换为BST
+     */
+    private void convertToBST() {
+        if (root == null) {
+            log("二叉树为空，无法转换");
+            return;
+        }
+
+        try {
+            // 获取二叉树的节点值（中序遍历）
+            List<Integer> values = new ArrayList<>();
+            inorderTraversalValues(root, values);
+
+            // 对值进行排序（BST需要有序）
+            Collections.sort(values);
+
+            // 创建BST状态
+            BSTPanel.BSTState bstState = new BSTPanel.BSTState(values);
+
+            // 切换到BST面板并恢复状态
+            JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
+            if (topFrame instanceof DataStructureVisualizer) {
+                DataStructureVisualizer mainFrame = (DataStructureVisualizer) topFrame;
+
+                // 直接获取目标面板并恢复状态
+                BSTPanel bstPanel = (BSTPanel) mainFrame.getPanel("BST");
+                if (bstPanel != null) {
+                    mainFrame.switchToPanel("BST");
+                    // 等待面板切换完成
+                    SwingUtilities.invokeLater(() -> {
+                        bstPanel.restoreFromState(bstState);
+                        log("✓ 普通二叉树已转换为BST，节点数: " + values.size());
+                    });
+                    return;
+                }
+            }
+
+            log("转换完成，请切换到二叉搜索树面板查看结果");
+
+        } catch (Exception ex) {
+            log("转换失败: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    // 辅助方法：查找BSTPanel
+    private BSTPanel findBSTPanel(Container container) {
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof BSTPanel) {
+                return (BSTPanel) comp;
+            } else if (comp instanceof Container) {
+                BSTPanel result = findBSTPanel((Container) comp);
+                if (result != null) return result;
+            }
+        }
+        return null;
+    }
+
+    // 中序遍历获取节点值
+    private void inorderTraversalValues(TreeNode node, List<Integer> values) {
+        if (node == null) return;
+        inorderTraversalValues(node.left, values);
+        values.add(node.value);
+        inorderTraversalValues(node.right, values);
     }
 
     private void clearTree() {

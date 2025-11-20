@@ -42,13 +42,10 @@ public class DataStructureVisualizer extends JFrame {
     }
 
     private void createMainInterface() {
-        // 创建菜单栏
         createMenuBar();
 
-        // 使用选项卡面板
         tabbedPane = new JTabbedPane();
 
-        // 创建各个面板并保存引用
         LinkedListPanel linkedListPanel = new LinkedListPanel();
         StackPanel stackPanel = new StackPanel();
         BinaryTreePanel binaryTreePanel = new BinaryTreePanel();
@@ -56,7 +53,6 @@ public class DataStructureVisualizer extends JFrame {
         HuffmanTreePanel huffmanTreePanel = new HuffmanTreePanel();
         AVLPanel avlPanel = new AVLPanel();
 
-        // 保存面板引用
         panels.put("LinkedList", linkedListPanel);
         panels.put("Stack", stackPanel);
         panels.put("BinaryTree", binaryTreePanel);
@@ -64,7 +60,6 @@ public class DataStructureVisualizer extends JFrame {
         panels.put("HuffmanTree", huffmanTreePanel);
         panels.put("AVLTree", avlPanel);
 
-        // 添加数据结构面板
         tabbedPane.addTab("链表结构", createTabPanel(linkedListPanel,
                 "线性表的链式存储结构\n支持添加、插入、删除节点操作"));
 
@@ -83,7 +78,6 @@ public class DataStructureVisualizer extends JFrame {
         tabbedPane.addTab("AVL平衡树", createTabPanel(avlPanel,
                 "自平衡二叉搜索树\n展示插入删除时的旋转平衡操作"));
 
-        // 设置选项卡变化监听器
         tabbedPane.addChangeListener(e -> {
             int selectedIndex = tabbedPane.getSelectedIndex();
             if (selectedIndex >= 0) {
@@ -94,18 +88,15 @@ public class DataStructureVisualizer extends JFrame {
             }
         });
 
-        // 初始化当前面板
         currentPanelName = "LinkedList";
         currentActivePanel = linkedListPanel;
 
-        // 创建主面板
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
         mainPanel.add(createStatusPanel(), BorderLayout.SOUTH);
 
         add(mainPanel);
 
-        // 初始状态消息
         logStatus("=== 数据结构可视化模拟器已启动 ===");
         logStatus("当前包含: 链表结构、栈结构、二叉树构建、二叉搜索树、哈夫曼树、AVL平衡树");
         logStatus("使用文件菜单可以保存和加载数据结构状态");
@@ -114,7 +105,6 @@ public class DataStructureVisualizer extends JFrame {
     private void createMenuBar() {
         JMenuBar menuBar = new JMenuBar();
 
-        // 文件菜单
         JMenu fileMenu = new JMenu("文件");
         JMenuItem saveItem = new JMenuItem("保存当前结构");
         JMenuItem loadItem = new JMenuItem("加载结构");
@@ -129,7 +119,6 @@ public class DataStructureVisualizer extends JFrame {
         fileMenu.addSeparator();
         fileMenu.add(exitItem);
 
-        // 帮助菜单
         JMenu helpMenu = new JMenu("帮助");
         JMenuItem helpItem = new JMenuItem("使用说明");
         JMenuItem aboutItem = new JMenuItem("关于");
@@ -156,13 +145,11 @@ public class DataStructureVisualizer extends JFrame {
         fileChooser.setDialogTitle("保存数据结构");
         fileChooser.setSelectedFile(new File(currentPanelName + "_data.dat"));
 
-        // 添加文件过滤器
         fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
                 "数据结构文件 (*.dat)", "dat"));
 
         if (fileChooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             File file = fileChooser.getSelectedFile();
-            // 确保文件扩展名
             if (!file.getName().toLowerCase().endsWith(".dat")) {
                 file = new File(file.getAbsolutePath() + ".dat");
             }
@@ -170,7 +157,6 @@ public class DataStructureVisualizer extends JFrame {
             try (ObjectOutputStream oos = new ObjectOutputStream(
                     new BufferedOutputStream(new FileOutputStream(file)))) {
 
-                // 根据当前面板类型获取状态
                 Object state = null;
                 switch (currentPanelName) {
                     case "LinkedList":
@@ -237,10 +223,8 @@ public class DataStructureVisualizer extends JFrame {
                 String panelType = saveData.getPanelType();
                 Object state = saveData.getState();
 
-                // 切换到对应的面板
                 switchToPanel(panelType);
 
-                // 根据面板类型恢复状态
                 switch (panelType) {
                     case "LinkedList":
                         if (state instanceof LinkedListPanel.LinkedListState) {
@@ -292,11 +276,6 @@ public class DataStructureVisualizer extends JFrame {
         }
     }
 
-    // ================== 辅助方法 ==================
-
-    /**
-     * 切换到指定面板 - 修改为public方法
-     */
     public void switchToPanel(String panelKey) {
         for (int i = 0; i < tabbedPane.getTabCount(); i++) {
             String title = tabbedPane.getTitleAt(i);
@@ -325,7 +304,6 @@ public class DataStructureVisualizer extends JFrame {
     private JPanel createTabPanel(JPanel contentPanel, String description) {
         JPanel panel = new JPanel(new BorderLayout());
 
-        // 描述面板
         JTextArea descArea = new JTextArea(description);
         descArea.setEditable(false);
         descArea.setFont(new Font("宋体", Font.PLAIN, 12));
@@ -343,7 +321,6 @@ public class DataStructureVisualizer extends JFrame {
         statusPanel.setBorder(BorderFactory.createTitledBorder("操作日志"));
         statusPanel.setPreferredSize(new Dimension(0, 100));
 
-        // 状态文本区域
         statusArea = new JTextArea(4, 50);
         statusArea.setEditable(false);
         statusArea.setFont(new Font("宋体", Font.PLAIN, 12));
@@ -351,7 +328,6 @@ public class DataStructureVisualizer extends JFrame {
 
         JScrollPane scrollPane = new JScrollPane(statusArea);
 
-        // 按钮面板
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
         JButton clearButton = new JButton("清空日志");
@@ -389,6 +365,7 @@ public class DataStructureVisualizer extends JFrame {
     }
 
     private void showHelpDialog() {
+        // 修改帮助说明，移除被删功能的描述
         String helpMessage =
                 "数据结构可视化模拟器 - 使用说明\n\n" +
                         "链表结构:\n" +
@@ -411,12 +388,7 @@ public class DataStructureVisualizer extends JFrame {
                         "  • 动画查找: 输入值，显示从根节点到目标的完整查找路径\n" +
                         "  • 删除节点: 输入值从树中删除节点\n" +
                         "  • 清空树: 移除所有节点\n" +
-                        "  • 转为普通二叉树: 将BST转换为普通二叉树\n" +
                         "  • 转为链表: 将BST转换为链表\n\n" +
-                        "普通二叉树:\n" +
-                        "  • 转为BST: 将普通二叉树转换为二叉搜索树\n\n" +
-                        "链表结构:\n" +
-                        "  • 转为BST: 将链表转换为二叉搜索树\n\n" +
                         "哈夫曼树(动态构建):\n" +
                         "  • 开始构建: 输入权重值(逗号分隔)，准备构建过程\n" +
                         "  • 上一步/下一步: 手动控制构建过程，查看每一步的合并操作\n" +
@@ -435,7 +407,7 @@ public class DataStructureVisualizer extends JFrame {
                         "增强功能:\n" +
                         "  • 输入验证: 全面的输入验证和错误处理\n" +
                         "  • 遍历动画: 增强的变色效果显示遍历顺序\n" +
-                        "  • 数据结构转换: BST与普通二叉树、链表之间的相互转换\n" +
+                        "  • 数据结构转换: 支持将BST转换为链表\n" +
                         "  • 健壮性: 异常处理和边界条件检查";
 
         JTextArea helpArea = new JTextArea(helpMessage);
@@ -450,11 +422,12 @@ public class DataStructureVisualizer extends JFrame {
     }
 
     private void showAboutDialog() {
+        // 修改关于说明
         String aboutMessage =
-                "数据结构可视化模拟器 v2.0\n\n" +
+                "数据结构可视化模拟器 v2.1\n\n" +
                         "功能特点:\n" +
                         "• 六种数据结构可视化: 链表、栈、二叉树、BST、哈夫曼树、AVL树\n" +
-                        "• 数据结构转换: BST与普通二叉树、链表之间的相互转换\n" +
+                        "• 数据结构转换: 支持BST转为链表\n" +
                         "• 动画演示: 遍历过程、查找路径、平衡操作\n" +
                         "• 数据持久化: 支持保存和加载数据结构状态\n" +
                         "• 健壮性设计: 全面的输入验证和异常处理\n" +
@@ -476,35 +449,28 @@ public class DataStructureVisualizer extends JFrame {
     }
 
     public static void main(String[] args) {
-        // 设置系统外观
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        // 启动应用
         SwingUtilities.invokeLater(() -> {
             new DataStructureVisualizer();
         });
     }
 }
 
-/**
- * 数据结构保存数据类 - 用于序列化
- */
 class StructureSaveData implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String panelType;
     private String timestamp;
-    private Object state; // 保存面板的状态对象
+    private Object state;
 
     public StructureSaveData() {
-        // 不再使用dataMap，直接使用state对象
     }
 
-    // Getter和Setter方法
     public String getPanelType() { return panelType; }
     public void setPanelType(String panelType) { this.panelType = panelType; }
 
@@ -514,7 +480,6 @@ class StructureSaveData implements Serializable {
     public Object getState() { return state; }
     public void setState(Object state) { this.state = state; }
 
-    // 为了向后兼容，保留这些方法但标记为过时
     @Deprecated
     public void setData(String key, Object value) { }
 

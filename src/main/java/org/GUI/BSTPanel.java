@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 带动画查找的二叉搜索树面板 - 修复根节点变色问题
- * 显示从上到下的遍历过程
+ * 带动画查找的二叉搜索树面板
+ * 修改说明：只保留转为链表功能，删除转为普通二叉树功能
  */
 public class BSTPanel extends JPanel {
     private BSTNode root;
@@ -60,7 +60,7 @@ public class BSTPanel extends JPanel {
         inorderTraversalValues(node.right, values);
     }
 
-    // 从状态恢复 - 修复：正确构建BST
+    // 从状态恢复
     public void restoreFromState(BSTState state) {
         if (state == null || state.nodeValues == null || state.nodeValues.isEmpty()) {
             root = null;
@@ -103,8 +103,7 @@ public class BSTPanel extends JPanel {
         JButton deleteButton = new JButton("删除节点");
         JButton clearButton = new JButton("清空树");
         JButton traverseButton = new JButton("中序遍历");
-        // 添加转换按钮
-        JButton toBinaryTreeButton = new JButton("转为普通二叉树");
+        // 修改：只保留转为链表按钮
         JButton toLinkedListButton = new JButton("转为链表");
 
         addButton.addActionListener(this::addNode);
@@ -112,7 +111,6 @@ public class BSTPanel extends JPanel {
         deleteButton.addActionListener(e -> deleteNode());
         clearButton.addActionListener(e -> clearTree());
         traverseButton.addActionListener(e -> startTraversal());
-        toBinaryTreeButton.addActionListener(e -> convertToBinaryTree());
         toLinkedListButton.addActionListener(e -> convertToLinkedList());
 
         panel.add(new JLabel("值:"));
@@ -122,8 +120,7 @@ public class BSTPanel extends JPanel {
         panel.add(deleteButton);
         panel.add(traverseButton);
         panel.add(clearButton);
-        panel.add(toBinaryTreeButton);
-        panel.add(toLinkedListButton);
+        panel.add(toLinkedListButton); // 添加转为链表按钮
 
         return panel;
     }
@@ -275,15 +272,12 @@ public class BSTPanel extends JPanel {
             return false;
         }
 
-        // 添加当前节点到路径
         path.add(node);
 
-        // 如果找到目标值，返回true
         if (node.value == value) {
             return true;
         }
 
-        // 递归搜索左子树或右子树
         if (value < node.value) {
             return recordSearchPath(node.left, value, path);
         } else {
@@ -351,14 +345,11 @@ public class BSTPanel extends JPanel {
         } else if (value > node.value) {
             node.right = deleteBST(node.right, value);
         } else {
-            // 找到要删除的节点
             if (node.left == null) {
                 return node.right;
             } else if (node.right == null) {
                 return node.left;
             }
-
-            // 有两个子节点的情况，找到右子树的最小值
             BSTNode minNode = findMin(node.right);
             node.value = minNode.value;
             node.right = deleteBST(node.right, minNode.value);
@@ -371,50 +362,6 @@ public class BSTPanel extends JPanel {
             node = node.left;
         }
         return node;
-    }
-
-    /**
-     * 将BST转换为普通二叉树
-     */
-    private void convertToBinaryTree() {
-        if (root == null) {
-            log("BST为空，无法转换");
-            return;
-        }
-
-        try {
-            // 获取BST的节点值（中序遍历）
-            List<Integer> values = new ArrayList<>();
-            inorderTraversalValues(root, values);
-
-            // 构建普通二叉树状态
-            BinaryTreePanel.BinaryTreeState binaryTreeState =
-                    new BinaryTreePanel.BinaryTreeState(values);
-
-            // 切换到普通二叉树面板并恢复状态
-            JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            if (topFrame instanceof DataStructureVisualizer) {
-                DataStructureVisualizer mainFrame = (DataStructureVisualizer) topFrame;
-
-                // 直接获取目标面板并恢复状态
-                BinaryTreePanel binaryTreePanel = (BinaryTreePanel) mainFrame.getPanel("BinaryTree");
-                if (binaryTreePanel != null) {
-                    mainFrame.switchToPanel("BinaryTree");
-                    // 等待面板切换完成
-                    SwingUtilities.invokeLater(() -> {
-                        binaryTreePanel.restoreFromState(binaryTreeState);
-                        log("✓ BST已转换为普通二叉树，节点数: " + values.size());
-                    });
-                    return;
-                }
-            }
-
-            log("转换完成，请切换到二叉树构建面板查看结果");
-
-        } catch (Exception ex) {
-            log("转换失败: " + ex.getMessage());
-            ex.printStackTrace();
-        }
     }
 
     /**
@@ -498,7 +445,7 @@ public class BSTPanel extends JPanel {
         // 绘制标题
         g2d.setColor(Color.BLUE);
         g2d.setFont(new Font("宋体", Font.BOLD, 16));
-        g2d.drawString("二叉搜索树 - 修复根节点变色问题", 20, 30);
+        g2d.drawString("二叉搜索树", 20, 30);
 
         if (root != null) {
             drawTree(g2d, root, getWidth() / 2, 100, getWidth() / 4);
@@ -508,10 +455,7 @@ public class BSTPanel extends JPanel {
             g2d.drawString("树为空，请添加节点", getWidth() / 2 - 80, getHeight() / 2);
         }
 
-        // 绘制查找状态信息
         drawSearchInfo(g2d);
-
-        // 绘制图例
         drawLegend(g2d);
     }
 
@@ -540,7 +484,6 @@ public class BSTPanel extends JPanel {
                         g2d.drawString("❌ 查找完成 - 未找到节点: " + targetValue, 20, 60);
                     }
                 } catch (NumberFormatException e) {
-                    // 如果输入框不是数字，说明是遍历操作
                     g2d.setColor(Color.GREEN);
                     g2d.drawString("✅ 遍历完成 - 共访问 " + searchPath.size() + " 个节点", 20, 60);
                 }
@@ -554,7 +497,6 @@ public class BSTPanel extends JPanel {
     private void drawTree(Graphics2D g2d, BSTNode node, int x, int y, int hGap) {
         int radius = 25;
 
-        // 绘制左子树
         if (node.left != null) {
             int childX = x - hGap;
             int childY = y + 80;
@@ -563,7 +505,6 @@ public class BSTPanel extends JPanel {
             drawTree(g2d, node.left, childX, childY, hGap / 2);
         }
 
-        // 绘制右子树
         if (node.right != null) {
             int childX = x + hGap;
             int childY = y + 80;
@@ -572,7 +513,6 @@ public class BSTPanel extends JPanel {
             drawTree(g2d, node.right, childX, childY, hGap / 2);
         }
 
-        // 绘制当前节点 - 修复的颜色逻辑
         Color nodeColor = getNodeColor(node);
 
         g2d.setColor(nodeColor);
@@ -580,7 +520,6 @@ public class BSTPanel extends JPanel {
         g2d.setColor(Color.BLACK);
         g2d.drawOval(x - radius, y - radius, radius * 2, radius * 2);
 
-        // 绘制节点值
         String valueStr = String.valueOf(node.value);
         FontMetrics fm = g2d.getFontMetrics();
         int textWidth = fm.stringWidth(valueStr);
@@ -588,7 +527,6 @@ public class BSTPanel extends JPanel {
         g2d.setColor(Color.BLACK);
         g2d.drawString(valueStr, x - textWidth / 2, y + textHeight / 4);
 
-        // 如果是查找路径上的节点，显示访问顺序
         if (searchPath != null && searchPath.contains(node)) {
             int order = searchPath.indexOf(node) + 1;
             g2d.setColor(Color.RED);
@@ -598,9 +536,6 @@ public class BSTPanel extends JPanel {
     }
 
     private Color getNodeColor(BSTNode node) {
-        // 修复：确保根节点在遍历/查找过程中能够正确变色
-
-        // 1. 首先检查是否是当前正在访问的节点（最高优先级）
         if (isSearching && currentSearchIndex > 0 &&
                 currentSearchIndex <= searchPath.size()) {
             BSTNode currentNode = searchPath.get(currentSearchIndex - 1);
@@ -609,13 +544,10 @@ public class BSTPanel extends JPanel {
             }
         }
 
-        // 2. 查找/遍历路径上的节点
         if (searchPath != null && searchPath.contains(node)) {
             int index = searchPath.indexOf(node);
 
-            // 如果操作已完成
             if (!isSearching) {
-                // 查找操作完成
                 if ("search".equals(currentOperation)) {
                     BSTNode lastNode = searchPath.get(searchPath.size() - 1);
                     String searchValue = valueField.getText().trim();
@@ -623,29 +555,24 @@ public class BSTPanel extends JPanel {
                     if (!searchValue.isEmpty()) {
                         try {
                             int targetValue = Integer.parseInt(searchValue);
-                            // 如果是目标节点且找到
                             if (node == lastNode && node.value == targetValue) {
                                 return FOUND_NODE_COLOR;
                             }
-                            // 如果是目标节点但没找到
                             else if (node == lastNode && node.value != targetValue) {
                                 return NOT_FOUND_COLOR;
                             }
                         } catch (NumberFormatException e) {
-                            // 如果输入框不是数字，跳过特殊处理
                         }
                     }
                 }
 
-                // 遍历完成或查找完成后的渐变色效果
                 float ratio = (float) index / (searchPath.size() - 1);
                 int red = 255;
-                int green = (int) (165 + (90 * ratio)); // 从橙色到更亮的黄色
+                int green = (int) (165 + (90 * ratio));
                 int blue = (int) (100 * ratio);
                 return new Color(red, green, blue);
             }
 
-            // 操作过程中，已访问的节点显示渐变色
             if (index < currentSearchIndex) {
                 float ratio = (float) index / (currentSearchIndex - 1);
                 int red = 255;
@@ -655,13 +582,12 @@ public class BSTPanel extends JPanel {
             }
         }
 
-        // 3. 根据节点类型设置默认颜色（最低优先级）
         if (node.left == null && node.right == null) {
-            return LEAF_NODE_COLOR; // 叶子节点
+            return LEAF_NODE_COLOR;
         } else if (node == root) {
-            return ROOT_NODE_COLOR; // 根节点
+            return ROOT_NODE_COLOR;
         } else {
-            return INTERNAL_NODE_COLOR; // 内部节点
+            return INTERNAL_NODE_COLOR;
         }
     }
 
@@ -675,60 +601,22 @@ public class BSTPanel extends JPanel {
 
         startY += 20;
 
-        // 当前访问节点
-        g2d.setColor(CURRENT_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("当前节点", startX + 20, startY + 12);
-
-        startY += 20;
-
-        // 已访问节点
-        g2d.setColor(VISITED_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("已访问", startX + 20, startY + 12);
-
-        startY += 20;
-
-        // 找到的节点
-        g2d.setColor(FOUND_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("找到节点", startX + 20, startY + 12);
-
-        startY += 20;
-
-        // 未找到
-        g2d.setColor(NOT_FOUND_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("未找到", startX + 20, startY + 12);
-
-        startY += 20;
-
-        // 叶子节点
-        g2d.setColor(LEAF_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("叶子节点", startX + 20, startY + 12);
-
-        startY += 20;
-
-        // 根节点
-        g2d.setColor(ROOT_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("根节点", startX + 20, startY + 12);
+        drawLegendItem(g2d, CURRENT_NODE_COLOR, "当前节点", startX, startY); startY += 20;
+        drawLegendItem(g2d, VISITED_NODE_COLOR, "已访问", startX, startY); startY += 20;
+        drawLegendItem(g2d, FOUND_NODE_COLOR, "找到节点", startX, startY); startY += 20;
+        drawLegendItem(g2d, NOT_FOUND_COLOR, "未找到", startX, startY); startY += 20;
+        drawLegendItem(g2d, LEAF_NODE_COLOR, "叶子节点", startX, startY); startY += 20;
+        drawLegendItem(g2d, ROOT_NODE_COLOR, "根节点", startX, startY);
     }
 
-    // 二叉搜索树节点类 - 实现序列化
+    private void drawLegendItem(Graphics2D g2d, Color color, String text, int x, int y) {
+        g2d.setColor(color);
+        g2d.fillRect(x, y, 15, 15);
+        g2d.setColor(Color.BLACK);
+        g2d.drawRect(x, y, 15, 15);
+        g2d.drawString(text, x + 20, y + 12);
+    }
+
     private static class BSTNode implements Serializable {
         private static final long serialVersionUID = 1L;
         int value;

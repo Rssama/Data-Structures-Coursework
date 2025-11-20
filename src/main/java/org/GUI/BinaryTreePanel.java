@@ -8,11 +8,10 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Collections;
 
 /**
- * 二叉树构建面板 - 修复根节点变色问题
- * 展示二叉树的构建过程和遍历动画
+ * 二叉树构建面板
+ * 修改说明：删除了转为BST的功能
  */
 public class BinaryTreePanel extends JPanel {
     private TreeNode root;
@@ -24,29 +23,26 @@ public class BinaryTreePanel extends JPanel {
     private boolean isTraversing;
     private String currentTraversalType;
 
-    // 颜色定义
-    private final Color DEFAULT_NODE_COLOR = new Color(200, 220, 255); // 默认节点颜色
-    private final Color CURRENT_NODE_COLOR = Color.YELLOW; // 当前访问节点
-    private final Color VISITED_NODE_COLOR = new Color(255, 165, 0); // 已访问节点
-    private final Color LEAF_NODE_COLOR = new Color(144, 238, 144); // 叶子节点
-    private final Color ROOT_NODE_COLOR = new Color(173, 216, 230); // 根节点
-    private final Color INTERNAL_NODE_COLOR = new Color(176, 224, 230); // 内部节点
+    private final Color DEFAULT_NODE_COLOR = new Color(200, 220, 255);
+    private final Color CURRENT_NODE_COLOR = Color.YELLOW;
+    private final Color VISITED_NODE_COLOR = new Color(255, 165, 0);
+    private final Color LEAF_NODE_COLOR = new Color(144, 238, 144);
+    private final Color ROOT_NODE_COLOR = new Color(173, 216, 230);
+    private final Color INTERNAL_NODE_COLOR = new Color(176, 224, 230);
 
     public BinaryTreePanel() {
         initializePanel();
     }
 
-    // 序列化状态类
     public static class BinaryTreeState implements Serializable {
         private static final long serialVersionUID = 1L;
-        public List<Integer> nodeValues; // 层序遍历的节点值
+        public List<Integer> nodeValues;
 
         public BinaryTreeState(List<Integer> values) {
             this.nodeValues = new ArrayList<>(values);
         }
     }
 
-    // 获取当前状态（层序遍历）
     public BinaryTreeState getCurrentState() {
         List<Integer> values = new ArrayList<>();
         if (root != null) {
@@ -62,7 +58,6 @@ public class BinaryTreePanel extends JPanel {
         return new BinaryTreeState(values);
     }
 
-    // 从状态恢复（层序构建）- 修复：确保正确构建树结构
     public void restoreFromState(BinaryTreeState state) {
         if (state == null || state.nodeValues == null || state.nodeValues.isEmpty()) {
             root = null;
@@ -71,16 +66,12 @@ public class BinaryTreePanel extends JPanel {
             return;
         }
 
-        // 清空当前树
         root = null;
-
-        // 使用层序构建恢复树
         List<TreeNode> nodes = new ArrayList<>();
         for (Integer value : state.nodeValues) {
             nodes.add(new TreeNode(value));
         }
 
-        // 构建树结构
         for (int i = 0; i < nodes.size(); i++) {
             TreeNode node = nodes.get(i);
             int leftIndex = 2 * i + 1;
@@ -122,8 +113,7 @@ public class BinaryTreePanel extends JPanel {
         JButton inorderButton = new JButton("中序遍历");
         JButton postorderButton = new JButton("后序遍历");
         JButton clearButton = new JButton("清空树");
-        // 添加转换按钮
-        JButton toBSTButton = new JButton("转为BST");
+        // 修改：移除转为BST按钮
 
         addButton.addActionListener(this::addNode);
         levelOrderButton.addActionListener(e -> buildLevelOrderTree());
@@ -131,7 +121,6 @@ public class BinaryTreePanel extends JPanel {
         inorderButton.addActionListener(e -> startInorderTraversal());
         postorderButton.addActionListener(e -> startPostorderTraversal());
         clearButton.addActionListener(e -> clearTree());
-        toBSTButton.addActionListener(e -> convertToBST());
 
         panel.add(new JLabel("值:"));
         panel.add(valueField);
@@ -141,7 +130,6 @@ public class BinaryTreePanel extends JPanel {
         panel.add(inorderButton);
         panel.add(postorderButton);
         panel.add(clearButton);
-        panel.add(toBSTButton);
 
         return panel;
     }
@@ -158,7 +146,6 @@ public class BinaryTreePanel extends JPanel {
                 root = new TreeNode(value);
                 log("创建根节点: " + value);
             } else {
-                // 使用层序遍历找到第一个可以插入的位置
                 TreeNode insertedNode = insertLevelOrder(value);
                 if (insertedNode != null) {
                     log("添加节点: " + value + " (父节点: " + insertedNode.value + ")");
@@ -181,7 +168,6 @@ public class BinaryTreePanel extends JPanel {
         while (!queue.isEmpty()) {
             TreeNode current = queue.poll();
 
-            // 尝试插入左孩子
             if (current.left == null) {
                 current.left = new TreeNode(value);
                 return current;
@@ -189,7 +175,6 @@ public class BinaryTreePanel extends JPanel {
                 queue.offer(current.left);
             }
 
-            // 尝试插入右孩子
             if (current.right == null) {
                 current.right = new TreeNode(value);
                 return current;
@@ -216,7 +201,6 @@ public class BinaryTreePanel extends JPanel {
 
             clearTree();
 
-            // 构建完全二叉树
             List<TreeNode> nodes = new ArrayList<>();
             for (String part : parts) {
                 int value = Integer.parseInt(part.trim());
@@ -227,7 +211,6 @@ public class BinaryTreePanel extends JPanel {
                 nodes.add(new TreeNode(value));
             }
 
-            // 构建树结构
             for (int i = 0; i < nodes.size(); i++) {
                 TreeNode node = nodes.get(i);
                 int leftIndex = 2 * i + 1;
@@ -359,73 +342,6 @@ public class BinaryTreePanel extends JPanel {
         path.add(node);
     }
 
-    /**
-     * 将普通二叉树转换为BST
-     */
-    private void convertToBST() {
-        if (root == null) {
-            log("二叉树为空，无法转换");
-            return;
-        }
-
-        try {
-            // 获取二叉树的节点值（中序遍历）
-            List<Integer> values = new ArrayList<>();
-            inorderTraversalValues(root, values);
-
-            // 对值进行排序（BST需要有序）
-            Collections.sort(values);
-
-            // 创建BST状态
-            BSTPanel.BSTState bstState = new BSTPanel.BSTState(values);
-
-            // 切换到BST面板并恢复状态
-            JFrame topFrame = (JFrame) SwingUtilities.getWindowAncestor(this);
-            if (topFrame instanceof DataStructureVisualizer) {
-                DataStructureVisualizer mainFrame = (DataStructureVisualizer) topFrame;
-
-                // 直接获取目标面板并恢复状态
-                BSTPanel bstPanel = (BSTPanel) mainFrame.getPanel("BST");
-                if (bstPanel != null) {
-                    mainFrame.switchToPanel("BST");
-                    // 等待面板切换完成
-                    SwingUtilities.invokeLater(() -> {
-                        bstPanel.restoreFromState(bstState);
-                        log("✓ 普通二叉树已转换为BST，节点数: " + values.size());
-                    });
-                    return;
-                }
-            }
-
-            log("转换完成，请切换到二叉搜索树面板查看结果");
-
-        } catch (Exception ex) {
-            log("转换失败: " + ex.getMessage());
-            ex.printStackTrace();
-        }
-    }
-
-    // 辅助方法：查找BSTPanel
-    private BSTPanel findBSTPanel(Container container) {
-        for (Component comp : container.getComponents()) {
-            if (comp instanceof BSTPanel) {
-                return (BSTPanel) comp;
-            } else if (comp instanceof Container) {
-                BSTPanel result = findBSTPanel((Container) comp);
-                if (result != null) return result;
-            }
-        }
-        return null;
-    }
-
-    // 中序遍历获取节点值
-    private void inorderTraversalValues(TreeNode node, List<Integer> values) {
-        if (node == null) return;
-        inorderTraversalValues(node.left, values);
-        values.add(node.value);
-        inorderTraversalValues(node.right, values);
-    }
-
     private void clearTree() {
         if (isTraversing) {
             log("正在执行遍历动画，请等待完成");
@@ -459,10 +375,9 @@ public class BinaryTreePanel extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // 绘制标题
         g2d.setColor(Color.BLUE);
         g2d.setFont(new Font("宋体", Font.BOLD, 16));
-        g2d.drawString("二叉树构建与遍历 - 修复根节点变色", 20, 30);
+        g2d.drawString("二叉树构建与遍历", 20, 30);
 
         if (root != null) {
             drawBinaryTree(g2d, root, getWidth() / 2, 80, getWidth() / 4);
@@ -472,42 +387,32 @@ public class BinaryTreePanel extends JPanel {
             g2d.drawString("树为空，请添加节点", getWidth() / 2 - 100, getHeight() / 2);
         }
 
-        // 绘制遍历状态
         drawTraversalInfo(g2d);
     }
 
     private void drawBinaryTree(Graphics2D g2d, TreeNode node, int x, int y, int hGap) {
         int radius = 25;
 
-        // 绘制左子树
         if (node.left != null) {
             int childX = x - hGap;
             int childY = y + 80;
             g2d.setColor(Color.BLACK);
             g2d.drawLine(x, y + radius, childX, childY - radius);
-
-            // 绘制左子树连接线标签
             g2d.setFont(new Font("宋体", Font.PLAIN, 12));
             g2d.drawString("左子树", (x + childX) / 2 - 20, (y + childY) / 2);
-
             drawBinaryTree(g2d, node.left, childX, childY, hGap / 2);
         }
 
-        // 绘制右子树
         if (node.right != null) {
             int childX = x + hGap;
             int childY = y + 80;
             g2d.setColor(Color.BLACK);
             g2d.drawLine(x, y + radius, childX, childY - radius);
-
-            // 绘制右子树连接线标签
             g2d.setFont(new Font("宋体", Font.PLAIN, 12));
             g2d.drawString("右子树", (x + childX) / 2 - 20, (y + childY) / 2);
-
             drawBinaryTree(g2d, node.right, childX, childY, hGap / 2);
         }
 
-        // 绘制当前节点 - 修复的颜色逻辑
         Color nodeColor = getNodeColor(node);
 
         g2d.setColor(nodeColor);
@@ -515,7 +420,6 @@ public class BinaryTreePanel extends JPanel {
         g2d.setColor(Color.BLACK);
         g2d.drawOval(x - radius, y - radius, radius * 2, radius * 2);
 
-        // 绘制节点值
         String valueStr = String.valueOf(node.value);
         FontMetrics fm = g2d.getFontMetrics();
         int textWidth = fm.stringWidth(valueStr);
@@ -523,7 +427,6 @@ public class BinaryTreePanel extends JPanel {
         g2d.setFont(new Font("宋体", Font.BOLD, 14));
         g2d.drawString(valueStr, x - textWidth / 2, y + 5);
 
-        // 如果是遍历路径上的节点，显示访问顺序
         if (traversalPath != null && traversalPath.contains(node)) {
             int order = traversalPath.indexOf(node) + 1;
             g2d.setColor(Color.RED);
@@ -531,7 +434,6 @@ public class BinaryTreePanel extends JPanel {
             g2d.drawString("(" + order + ")", x - 8, y - radius - 5);
         }
 
-        // 显示节点类型
         g2d.setColor(Color.DARK_GRAY);
         g2d.setFont(new Font("宋体", Font.PLAIN, 10));
         if (node.left == null && node.right == null) {
@@ -542,9 +444,6 @@ public class BinaryTreePanel extends JPanel {
     }
 
     private Color getNodeColor(TreeNode node) {
-        // 修复：确保根节点在遍历过程中能够正确变色
-
-        // 1. 首先检查是否是当前正在访问的节点（最高优先级）
         if (isTraversing && currentTraversalIndex > 0 &&
                 currentTraversalIndex <= traversalPath.size()) {
             TreeNode currentNode = traversalPath.get(currentTraversalIndex - 1);
@@ -553,21 +452,16 @@ public class BinaryTreePanel extends JPanel {
             }
         }
 
-        // 2. 检查是否在遍历路径中（已访问过的节点）
         if (traversalPath != null && traversalPath.contains(node)) {
             int index = traversalPath.indexOf(node);
-
-            // 如果遍历已完成，所有节点都显示为已访问
             if (!isTraversing) {
-                // 遍历完成后的渐变色效果
                 float ratio = (float) index / (traversalPath.size() - 1);
                 int red = 255;
-                int green = (int) (165 + (90 * ratio)); // 从橙色到更亮的黄色
+                int green = (int) (165 + (90 * ratio));
                 int blue = (int) (100 * ratio);
                 return new Color(red, green, blue);
             }
 
-            // 遍历过程中，已访问的节点显示渐变色
             if (index < currentTraversalIndex) {
                 float ratio = (float) index / (currentTraversalIndex - 1);
                 int red = 255;
@@ -577,13 +471,12 @@ public class BinaryTreePanel extends JPanel {
             }
         }
 
-        // 3. 根据节点类型设置默认颜色（最低优先级）
         if (node.left == null && node.right == null) {
-            return LEAF_NODE_COLOR; // 叶子节点
+            return LEAF_NODE_COLOR;
         } else if (node == root) {
-            return ROOT_NODE_COLOR; // 根节点
+            return ROOT_NODE_COLOR;
         } else {
-            return INTERNAL_NODE_COLOR; // 内部节点
+            return INTERNAL_NODE_COLOR;
         }
     }
 
@@ -600,7 +493,6 @@ public class BinaryTreePanel extends JPanel {
             g2d.drawString(traversalName + "完成，共访问 " + traversalPath.size() + " 个节点", 20, getHeight() - 50);
         }
 
-        // 绘制图例
         drawLegend(g2d);
     }
 
@@ -611,54 +503,23 @@ public class BinaryTreePanel extends JPanel {
         g2d.setColor(Color.BLACK);
         g2d.setFont(new Font("宋体", Font.BOLD, 12));
         g2d.drawString("图例:", startX, startY);
-
         startY += 20;
 
-        // 当前访问节点
-        g2d.setColor(CURRENT_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("当前节点", startX + 20, startY + 12);
-
-        startY += 20;
-
-        // 已访问节点
-        g2d.setColor(VISITED_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("已访问", startX + 20, startY + 12);
-
-        startY += 20;
-
-        // 叶子节点
-        g2d.setColor(LEAF_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("叶子节点", startX + 20, startY + 12);
-
-        startY += 20;
-
-        // 内部节点
-        g2d.setColor(INTERNAL_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("内部节点", startX + 20, startY + 12);
-
-        startY += 20;
-
-        // 根节点
-        g2d.setColor(ROOT_NODE_COLOR);
-        g2d.fillRect(startX, startY, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(startX, startY, 15, 15);
-        g2d.drawString("根节点", startX + 20, startY + 12);
+        drawLegendItem(g2d, CURRENT_NODE_COLOR, "当前节点", startX, startY); startY += 20;
+        drawLegendItem(g2d, VISITED_NODE_COLOR, "已访问", startX, startY); startY += 20;
+        drawLegendItem(g2d, LEAF_NODE_COLOR, "叶子节点", startX, startY); startY += 20;
+        drawLegendItem(g2d, INTERNAL_NODE_COLOR, "内部节点", startX, startY); startY += 20;
+        drawLegendItem(g2d, ROOT_NODE_COLOR, "根节点", startX, startY);
     }
 
-    // 二叉树节点类 - 实现序列化
+    private void drawLegendItem(Graphics2D g2d, Color color, String text, int x, int y) {
+        g2d.setColor(color);
+        g2d.fillRect(x, y, 15, 15);
+        g2d.setColor(Color.BLACK);
+        g2d.drawRect(x, y, 15, 15);
+        g2d.drawString(text, x + 20, y + 12);
+    }
+
     private static class TreeNode implements Serializable {
         private static final long serialVersionUID = 1L;
         int value;

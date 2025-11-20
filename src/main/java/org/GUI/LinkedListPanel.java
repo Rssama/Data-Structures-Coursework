@@ -8,7 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 修改说明：删除了转为BST的功能
+ * 链表操作面板
+ * 修改说明：增加了批量添加功能，支持逗号分隔的字符串输入
  */
 public class LinkedListPanel extends JPanel {
     private List<Node> nodes;
@@ -67,33 +68,70 @@ public class LinkedListPanel extends JPanel {
     private JPanel createControlPanel() {
         JPanel panel = new JPanel(new FlowLayout());
 
-        valueField = new JTextField(10);
+        // 增加输入框宽度以适应批量输入
+        valueField = new JTextField(20);
         indexField = new JTextField(5);
 
         JButton addButton = new JButton("添加节点");
+        JButton batchAddButton = new JButton("批量添加"); // 新增按钮
         JButton insertButton = new JButton("插入节点");
         JButton deleteButton = new JButton("删除节点");
         JButton searchButton = new JButton("查找节点");
         JButton clearButton = new JButton("清空链表");
-        // 修改：移除转为BST按钮
 
         addButton.addActionListener(this::addNode);
+        batchAddButton.addActionListener(e -> batchAddNodes()); // 绑定事件
         insertButton.addActionListener(this::insertNode);
         deleteButton.addActionListener(this::deleteNode);
         searchButton.addActionListener(this::searchNode);
         clearButton.addActionListener(e -> clearList());
 
-        panel.add(new JLabel("值:"));
+        panel.add(new JLabel("值(批量用,隔开):"));
         panel.add(valueField);
         panel.add(new JLabel("位置:"));
         panel.add(indexField);
         panel.add(addButton);
+        panel.add(batchAddButton);
         panel.add(insertButton);
         panel.add(deleteButton);
         panel.add(searchButton);
         panel.add(clearButton);
 
         return panel;
+    }
+
+    // 新增：批量添加方法
+    private void batchAddNodes() {
+        String input = valueField.getText().trim();
+        if (input.isEmpty()) {
+            log("错误: 请输入数值");
+            return;
+        }
+
+        // 支持中文逗号和英文逗号
+        String[] parts = input.split("[,，]");
+        int successCount = 0;
+
+        for (String part : parts) {
+            try {
+                String valStr = part.trim();
+                if (valStr.isEmpty()) continue;
+
+                int value = Integer.parseInt(valStr);
+                if (value < -9999 || value > 9999) {
+                    log("警告: 数值 " + value + " 超出范围，已跳过");
+                    continue;
+                }
+                nodes.add(new Node(value));
+                successCount++;
+            } catch (NumberFormatException ex) {
+                log("警告: '" + part + "' 不是有效的整数，已跳过");
+            }
+        }
+
+        valueField.setText("");
+        repaint();
+        log("批量添加完成: 成功添加 " + successCount + " 个节点");
     }
 
     private void addNode(ActionEvent e) {

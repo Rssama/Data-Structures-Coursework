@@ -6,6 +6,10 @@ import java.awt.event.ActionEvent;
 import java.io.Serializable;
 import java.util.Stack;
 
+/**
+ * 栈操作面板
+ * 修改说明：增加了批量入栈功能
+ */
 public class StackPanel extends JPanel {
     private Stack<Integer> stack;
     private JTextField valueField;
@@ -16,7 +20,6 @@ public class StackPanel extends JPanel {
         initializePanel();
     }
 
-    // 序列化状态类
     public static class StackState implements Serializable {
         private static final long serialVersionUID = 1L;
         public java.util.List<Integer> stackElements;
@@ -26,12 +29,10 @@ public class StackPanel extends JPanel {
         }
     }
 
-    // 获取当前状态
     public StackState getCurrentState() {
         return new StackState(stack);
     }
 
-    // 从状态恢复
     public void restoreFromState(StackState state) {
         if (state == null) return;
 
@@ -57,26 +58,58 @@ public class StackPanel extends JPanel {
     private JPanel createControlPanel() {
         JPanel panel = new JPanel(new FlowLayout());
 
-        valueField = new JTextField(10);
+        valueField = new JTextField(20); // 增加宽度
 
         JButton pushButton = new JButton("入栈");
+        JButton batchPushButton = new JButton("批量入栈"); // 新增按钮
         JButton popButton = new JButton("出栈");
         JButton peekButton = new JButton("查看栈顶");
         JButton clearButton = new JButton("清空栈");
 
         pushButton.addActionListener(this::pushOperation);
+        batchPushButton.addActionListener(e -> batchPushOperation()); // 绑定事件
         popButton.addActionListener(e -> popOperation());
         peekButton.addActionListener(e -> peekOperation());
         clearButton.addActionListener(e -> clearStack());
 
-        panel.add(new JLabel("值:"));
+        panel.add(new JLabel("值(批量用,隔开):"));
         panel.add(valueField);
         panel.add(pushButton);
+        panel.add(batchPushButton);
         panel.add(popButton);
         panel.add(peekButton);
         panel.add(clearButton);
 
         return panel;
+    }
+
+    // 新增：批量入栈方法
+    private void batchPushOperation() {
+        String input = valueField.getText().trim();
+        if (input.isEmpty()) {
+            log("错误: 请输入数值");
+            return;
+        }
+
+        String[] parts = input.split("[,，]");
+        int successCount = 0;
+
+        for (String part : parts) {
+            try {
+                String valStr = part.trim();
+                if (valStr.isEmpty()) continue;
+
+                int value = Integer.parseInt(valStr);
+                stack.push(value);
+                successCount++;
+            } catch (NumberFormatException ex) {
+                log("警告: '" + part + "' 不是有效的整数，已跳过");
+            }
+        }
+
+        valueField.setText("");
+        repaint();
+        log("批量入栈完成: 成功推入 " + successCount + " 个元素");
     }
 
     private void pushOperation(ActionEvent e) {
@@ -136,11 +169,8 @@ public class StackPanel extends JPanel {
         int elementHeight = 40;
         int spacing = 5;
 
-        // 绘制栈的轮廓
         g2d.setColor(Color.BLACK);
         g2d.drawRect(stackBaseX, 200, elementWidth, stackBaseY - 200);
-
-        // 绘制栈底标识
         g2d.drawString("栈底", stackBaseX - 40, stackBaseY + 10);
 
         if (stack.isEmpty()) {
@@ -149,21 +179,17 @@ public class StackPanel extends JPanel {
             return;
         }
 
-        // 绘制栈中的元素
         for (int i = 0; i < stack.size(); i++) {
             int value = stack.get(i);
             int y = stackBaseY - (i + 1) * (elementHeight + spacing);
 
-            // 绘制元素矩形
             g2d.setColor(Color.ORANGE);
             g2d.fillRect(stackBaseX, y, elementWidth, elementHeight);
             g2d.setColor(Color.BLACK);
             g2d.drawRect(stackBaseX, y, elementWidth, elementHeight);
 
-            // 绘制元素值
             g2d.drawString(String.valueOf(value), stackBaseX + elementWidth / 2 - 5, y + elementHeight / 2 + 5);
 
-            // 如果是栈顶元素，特殊标记
             if (i == stack.size() - 1) {
                 g2d.setColor(Color.RED);
                 g2d.drawString("↑ 栈顶", stackBaseX + elementWidth + 10, y + elementHeight / 2);

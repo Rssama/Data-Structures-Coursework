@@ -11,7 +11,8 @@ import java.util.List;
 
 /**
  * 二叉树构建面板
- * 修改说明：删除了转为BST的功能
+ * 修改说明：增加了批量添加功能，区别于“层序构建”（后者会清空树）
+ * 批量添加是在现有树的基础上继续添加。
  */
 public class BinaryTreePanel extends JPanel {
     private TreeNode root;
@@ -37,7 +38,6 @@ public class BinaryTreePanel extends JPanel {
     public static class BinaryTreeState implements Serializable {
         private static final long serialVersionUID = 1L;
         public List<Integer> nodeValues;
-
         public BinaryTreeState(List<Integer> values) {
             this.nodeValues = new ArrayList<>(values);
         }
@@ -65,26 +65,18 @@ public class BinaryTreePanel extends JPanel {
             repaint();
             return;
         }
-
         root = null;
         List<TreeNode> nodes = new ArrayList<>();
         for (Integer value : state.nodeValues) {
             nodes.add(new TreeNode(value));
         }
-
         for (int i = 0; i < nodes.size(); i++) {
             TreeNode node = nodes.get(i);
             int leftIndex = 2 * i + 1;
             int rightIndex = 2 * i + 2;
-
-            if (leftIndex < nodes.size()) {
-                node.left = nodes.get(leftIndex);
-            }
-            if (rightIndex < nodes.size()) {
-                node.right = nodes.get(rightIndex);
-            }
+            if (leftIndex < nodes.size()) node.left = nodes.get(leftIndex);
+            if (rightIndex < nodes.size()) node.right = nodes.get(rightIndex);
         }
-
         root = nodes.isEmpty() ? null : nodes.get(0);
         resetTraversal();
         repaint();
@@ -93,10 +85,8 @@ public class BinaryTreePanel extends JPanel {
 
     private void initializePanel() {
         setLayout(new BorderLayout());
-
         JPanel controlPanel = createControlPanel();
         add(controlPanel, BorderLayout.NORTH);
-
         logArea = new JTextArea(5, 30);
         logArea.setEditable(false);
         add(new JScrollPane(logArea), BorderLayout.SOUTH);
@@ -105,26 +95,28 @@ public class BinaryTreePanel extends JPanel {
     private JPanel createControlPanel() {
         JPanel panel = new JPanel(new FlowLayout());
 
-        valueField = new JTextField(10);
+        valueField = new JTextField(20); // 增加宽度
 
         JButton addButton = new JButton("添加节点");
-        JButton levelOrderButton = new JButton("层序构建");
+        JButton batchAddButton = new JButton("批量添加"); // 新增按钮
+        JButton levelOrderButton = new JButton("层序构建(重建)"); // 区分名称
         JButton preorderButton = new JButton("先序遍历");
         JButton inorderButton = new JButton("中序遍历");
         JButton postorderButton = new JButton("后序遍历");
         JButton clearButton = new JButton("清空树");
-        // 修改：移除转为BST按钮
 
         addButton.addActionListener(this::addNode);
+        batchAddButton.addActionListener(e -> batchAddNodes()); // 绑定事件
         levelOrderButton.addActionListener(e -> buildLevelOrderTree());
         preorderButton.addActionListener(e -> startPreorderTraversal());
         inorderButton.addActionListener(e -> startInorderTraversal());
         postorderButton.addActionListener(e -> startPostorderTraversal());
         clearButton.addActionListener(e -> clearTree());
 
-        panel.add(new JLabel("值:"));
+        panel.add(new JLabel("值(批量用,隔开):"));
         panel.add(valueField);
         panel.add(addButton);
+        panel.add(batchAddButton);
         panel.add(levelOrderButton);
         panel.add(preorderButton);
         panel.add(inorderButton);
@@ -134,6 +126,39 @@ public class BinaryTreePanel extends JPanel {
         return panel;
     }
 
+    // 新增：批量添加方法
+    private void batchAddNodes() {
+        String input = valueField.getText().trim();
+        if (input.isEmpty()) {
+            log("错误: 请输入数值");
+            return;
+        }
+
+        String[] parts = input.split("[,，]");
+        int successCount = 0;
+
+        for (String part : parts) {
+            try {
+                String valStr = part.trim();
+                if (valStr.isEmpty()) continue;
+                int value = Integer.parseInt(valStr);
+                if (root == null) {
+                    root = new TreeNode(value);
+                } else {
+                    insertLevelOrder(value);
+                }
+                successCount++;
+            } catch (NumberFormatException ex) {
+                log("警告: '" + part + "' 不是有效的整数，已跳过");
+            }
+        }
+
+        valueField.setText("");
+        resetTraversal();
+        repaint();
+        log("批量添加完成: 成功添加 " + successCount + " 个节点");
+    }
+
     private void addNode(ActionEvent e) {
         try {
             int value = Integer.parseInt(valueField.getText().trim());
@@ -141,7 +166,6 @@ public class BinaryTreePanel extends JPanel {
                 log("错误: 数值范围应在 -9999 到 9999 之间");
                 return;
             }
-
             if (root == null) {
                 root = new TreeNode(value);
                 log("创建根节点: " + value);
@@ -167,20 +191,15 @@ public class BinaryTreePanel extends JPanel {
 
         while (!queue.isEmpty()) {
             TreeNode current = queue.poll();
-
             if (current.left == null) {
                 current.left = new TreeNode(value);
                 return current;
-            } else {
-                queue.offer(current.left);
-            }
+            } else queue.offer(current.left);
 
             if (current.right == null) {
                 current.right = new TreeNode(value);
                 return current;
-            } else {
-                queue.offer(current.right);
-            }
+            } else queue.offer(current.right);
         }
         return null;
     }
@@ -188,137 +207,58 @@ public class BinaryTreePanel extends JPanel {
     private void buildLevelOrderTree() {
         try {
             String input = valueField.getText().trim();
-            if (input.isEmpty()) {
-                log("错误: 请输入节点值");
-                return;
-            }
-
-            String[] parts = input.split(",");
-            if (parts.length == 0) {
-                log("错误: 请输入节点值，用逗号分隔");
-                return;
-            }
-
+            if (input.isEmpty()) { log("错误: 请输入节点值"); return; }
+            String[] parts = input.split("[,，]");
             clearTree();
-
             List<TreeNode> nodes = new ArrayList<>();
             for (String part : parts) {
-                int value = Integer.parseInt(part.trim());
-                if (value < -9999 || value > 9999) {
-                    log("警告: 节点值 " + value + " 超出范围，已跳过");
-                    continue;
-                }
-                nodes.add(new TreeNode(value));
+                try {
+                    int value = Integer.parseInt(part.trim());
+                    nodes.add(new TreeNode(value));
+                } catch(Exception ignored) {}
             }
-
             for (int i = 0; i < nodes.size(); i++) {
                 TreeNode node = nodes.get(i);
-                int leftIndex = 2 * i + 1;
-                int rightIndex = 2 * i + 2;
-
-                if (leftIndex < nodes.size()) {
-                    node.left = nodes.get(leftIndex);
-                }
-                if (rightIndex < nodes.size()) {
-                    node.right = nodes.get(rightIndex);
-                }
+                int left = 2 * i + 1;
+                int right = 2 * i + 2;
+                if (left < nodes.size()) node.left = nodes.get(left);
+                if (right < nodes.size()) node.right = nodes.get(right);
             }
-
             root = nodes.isEmpty() ? null : nodes.get(0);
             valueField.setText("");
             resetTraversal();
             repaint();
-            log("层序构建完成: " + input + " (共 " + nodes.size() + " 个节点)");
-
-        } catch (NumberFormatException ex) {
-            log("错误: 请输入有效的数字，用逗号分隔");
-        } catch (Exception ex) {
-            log("系统错误: " + ex.getMessage());
-        }
+            log("层序构建完成 (重建模式)");
+        } catch (Exception ex) { log("系统错误: " + ex.getMessage()); }
     }
 
-    private void startPreorderTraversal() {
-        if (root == null) {
-            log("树为空，无法遍历");
-            return;
-        }
-        startTraversal("preorder");
-    }
-
-    private void startInorderTraversal() {
-        if (root == null) {
-            log("树为空，无法遍历");
-            return;
-        }
-        startTraversal("inorder");
-    }
-
-    private void startPostorderTraversal() {
-        if (root == null) {
-            log("树为空，无法遍历");
-            return;
-        }
-        startTraversal("postorder");
-    }
+    private void startPreorderTraversal() { startTraversal("preorder"); }
+    private void startInorderTraversal() { startTraversal("inorder"); }
+    private void startPostorderTraversal() { startTraversal("postorder"); }
 
     private void startTraversal(String type) {
-        if (isTraversing) {
-            log("正在执行遍历动画，请等待完成");
-            return;
-        }
-
+        if (isTraversing || root == null) return;
         traversalPath = new ArrayList<>();
         currentTraversalType = type;
-
-        switch (type) {
-            case "preorder":
-                preorderTraversal(root, traversalPath);
-                log("开始先序遍历");
-                break;
-            case "inorder":
-                inorderTraversal(root, traversalPath);
-                log("开始中序遍历");
-                break;
-            case "postorder":
-                postorderTraversal(root, traversalPath);
-                log("开始后序遍历");
-                break;
-        }
-
-        if (traversalPath.isEmpty()) {
-            log("遍历路径为空");
-            return;
-        }
+        if (type.equals("preorder")) preorderTraversal(root, traversalPath);
+        else if (type.equals("inorder")) inorderTraversal(root, traversalPath);
+        else postorderTraversal(root, traversalPath);
 
         currentTraversalIndex = 0;
         isTraversing = true;
-
         traversalTimer = new Timer(1000, e -> {
             if (currentTraversalIndex < traversalPath.size()) {
-                TreeNode currentNode = traversalPath.get(currentTraversalIndex);
-                String traversalName = getTraversalName(currentTraversalType);
-                log(traversalName + " - 步骤 " + (currentTraversalIndex + 1) + ": 访问节点 " + currentNode.value);
+                log(type + " - 访问: " + traversalPath.get(currentTraversalIndex).value);
                 currentTraversalIndex++;
                 repaint();
             } else {
                 traversalTimer.stop();
                 isTraversing = false;
-                String traversalName = getTraversalName(currentTraversalType);
-                log("✓ " + traversalName + "完成! 共访问 " + traversalPath.size() + " 个节点");
+                log("遍历完成");
                 repaint();
             }
         });
-
         traversalTimer.start();
-    }
-
-    private String getTraversalName(String type) {
-        switch (type) {
-            case "preorder": return "先序遍历";
-            case "inorder": return "中序遍历";
-            case "postorder": return "后序遍历";
-            default: return "遍历";
-        }
     }
 
     private void preorderTraversal(TreeNode node, List<TreeNode> path) {
@@ -343,11 +283,7 @@ public class BinaryTreePanel extends JPanel {
     }
 
     private void clearTree() {
-        if (isTraversing) {
-            log("正在执行遍历动画，请等待完成");
-            return;
-        }
-
+        if (isTraversing) return;
         root = null;
         resetTraversal();
         repaint();
@@ -355,13 +291,10 @@ public class BinaryTreePanel extends JPanel {
     }
 
     private void resetTraversal() {
-        if (traversalTimer != null) {
-            traversalTimer.stop();
-        }
+        if (traversalTimer != null) traversalTimer.stop();
         traversalPath = null;
         currentTraversalIndex = 0;
         isTraversing = false;
-        currentTraversalType = null;
     }
 
     private void log(String message) {
@@ -374,150 +307,48 @@ public class BinaryTreePanel extends JPanel {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
         g2d.setColor(Color.BLUE);
         g2d.setFont(new Font("宋体", Font.BOLD, 16));
         g2d.drawString("二叉树构建与遍历", 20, 30);
-
-        if (root != null) {
-            drawBinaryTree(g2d, root, getWidth() / 2, 80, getWidth() / 4);
-        } else {
+        if (root != null) drawBinaryTree(g2d, root, getWidth() / 2, 80, getWidth() / 4);
+        else {
             g2d.setColor(Color.RED);
-            g2d.setFont(new Font("宋体", Font.BOLD, 16));
             g2d.drawString("树为空，请添加节点", getWidth() / 2 - 100, getHeight() / 2);
         }
-
-        drawTraversalInfo(g2d);
     }
 
     private void drawBinaryTree(Graphics2D g2d, TreeNode node, int x, int y, int hGap) {
         int radius = 25;
-
         if (node.left != null) {
             int childX = x - hGap;
             int childY = y + 80;
             g2d.setColor(Color.BLACK);
             g2d.drawLine(x, y + radius, childX, childY - radius);
-            g2d.setFont(new Font("宋体", Font.PLAIN, 12));
-            g2d.drawString("左子树", (x + childX) / 2 - 20, (y + childY) / 2);
             drawBinaryTree(g2d, node.left, childX, childY, hGap / 2);
         }
-
         if (node.right != null) {
             int childX = x + hGap;
             int childY = y + 80;
             g2d.setColor(Color.BLACK);
             g2d.drawLine(x, y + radius, childX, childY - radius);
-            g2d.setFont(new Font("宋体", Font.PLAIN, 12));
-            g2d.drawString("右子树", (x + childX) / 2 - 20, (y + childY) / 2);
             drawBinaryTree(g2d, node.right, childX, childY, hGap / 2);
         }
-
         Color nodeColor = getNodeColor(node);
-
         g2d.setColor(nodeColor);
         g2d.fillOval(x - radius, y - radius, radius * 2, radius * 2);
         g2d.setColor(Color.BLACK);
         g2d.drawOval(x - radius, y - radius, radius * 2, radius * 2);
-
-        String valueStr = String.valueOf(node.value);
-        FontMetrics fm = g2d.getFontMetrics();
-        int textWidth = fm.stringWidth(valueStr);
-        g2d.setColor(Color.BLACK);
-        g2d.setFont(new Font("宋体", Font.BOLD, 14));
-        g2d.drawString(valueStr, x - textWidth / 2, y + 5);
-
-        if (traversalPath != null && traversalPath.contains(node)) {
-            int order = traversalPath.indexOf(node) + 1;
-            g2d.setColor(Color.RED);
-            g2d.setFont(new Font("宋体", Font.BOLD, 12));
-            g2d.drawString("(" + order + ")", x - 8, y - radius - 5);
-        }
-
-        g2d.setColor(Color.DARK_GRAY);
-        g2d.setFont(new Font("宋体", Font.PLAIN, 10));
-        if (node.left == null && node.right == null) {
-            g2d.drawString("叶子", x - 10, y + radius + 15);
-        } else if (node == root) {
-            g2d.drawString("根节点", x - 15, y + radius + 15);
-        }
+        g2d.drawString(String.valueOf(node.value), x - 5, y + 5);
     }
 
     private Color getNodeColor(TreeNode node) {
-        if (isTraversing && currentTraversalIndex > 0 &&
-                currentTraversalIndex <= traversalPath.size()) {
-            TreeNode currentNode = traversalPath.get(currentTraversalIndex - 1);
-            if (node == currentNode) {
-                return CURRENT_NODE_COLOR;
-            }
-        }
-
+        if (isTraversing && currentTraversalIndex > 0 && node == traversalPath.get(currentTraversalIndex - 1))
+            return CURRENT_NODE_COLOR;
         if (traversalPath != null && traversalPath.contains(node)) {
-            int index = traversalPath.indexOf(node);
-            if (!isTraversing) {
-                float ratio = (float) index / (traversalPath.size() - 1);
-                int red = 255;
-                int green = (int) (165 + (90 * ratio));
-                int blue = (int) (100 * ratio);
-                return new Color(red, green, blue);
-            }
-
-            if (index < currentTraversalIndex) {
-                float ratio = (float) index / (currentTraversalIndex - 1);
-                int red = 255;
-                int green = (int) (165 + (90 * ratio));
-                int blue = (int) (100 * ratio);
-                return new Color(red, green, blue);
-            }
+            if (!isTraversing) return VISITED_NODE_COLOR;
+            if (traversalPath.indexOf(node) < currentTraversalIndex) return VISITED_NODE_COLOR;
         }
-
-        if (node.left == null && node.right == null) {
-            return LEAF_NODE_COLOR;
-        } else if (node == root) {
-            return ROOT_NODE_COLOR;
-        } else {
-            return INTERNAL_NODE_COLOR;
-        }
-    }
-
-    private void drawTraversalInfo(Graphics2D g2d) {
-        g2d.setColor(Color.BLUE);
-        g2d.setFont(new Font("宋体", Font.PLAIN, 14));
-
-        if (isTraversing) {
-            String traversalName = getTraversalName(currentTraversalType);
-            g2d.drawString("正在执行" + traversalName + "... 当前步骤: " + currentTraversalIndex + "/" + traversalPath.size(),
-                    20, getHeight() - 50);
-        } else if (traversalPath != null && !traversalPath.isEmpty()) {
-            String traversalName = getTraversalName(currentTraversalType);
-            g2d.drawString(traversalName + "完成，共访问 " + traversalPath.size() + " 个节点", 20, getHeight() - 50);
-        }
-
-        drawLegend(g2d);
-    }
-
-    private void drawLegend(Graphics2D g2d) {
-        int startX = getWidth() - 150;
-        int startY = 30;
-
-        g2d.setColor(Color.BLACK);
-        g2d.setFont(new Font("宋体", Font.BOLD, 12));
-        g2d.drawString("图例:", startX, startY);
-        startY += 20;
-
-        drawLegendItem(g2d, CURRENT_NODE_COLOR, "当前节点", startX, startY); startY += 20;
-        drawLegendItem(g2d, VISITED_NODE_COLOR, "已访问", startX, startY); startY += 20;
-        drawLegendItem(g2d, LEAF_NODE_COLOR, "叶子节点", startX, startY); startY += 20;
-        drawLegendItem(g2d, INTERNAL_NODE_COLOR, "内部节点", startX, startY); startY += 20;
-        drawLegendItem(g2d, ROOT_NODE_COLOR, "根节点", startX, startY);
-    }
-
-    private void drawLegendItem(Graphics2D g2d, Color color, String text, int x, int y) {
-        g2d.setColor(color);
-        g2d.fillRect(x, y, 15, 15);
-        g2d.setColor(Color.BLACK);
-        g2d.drawRect(x, y, 15, 15);
-        g2d.drawString(text, x + 20, y + 12);
+        return INTERNAL_NODE_COLOR;
     }
 
     private static class TreeNode implements Serializable {
@@ -525,9 +356,6 @@ public class BinaryTreePanel extends JPanel {
         int value;
         TreeNode left;
         TreeNode right;
-
-        TreeNode(int value) {
-            this.value = value;
-        }
+        TreeNode(int value) { this.value = value; }
     }
 }

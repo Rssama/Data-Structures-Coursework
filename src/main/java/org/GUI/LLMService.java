@@ -9,12 +9,18 @@ import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * LLM 服务类 - 适配本地 Ollama (DeepSeek)
+ */
 public class LLMService {
     // ================= 配置区域 =================
+    // Ollama 的 OpenAI 兼容接口
     private static final String API_URL = "http://localhost:11434/v1/chat/completions";
-    private static final String API_KEY = "ollama";
-    // 🔴 请确保此处模型名称正确
-    private static final String MODEL_NAME = "deepseek-r1:14b";
+    private static final String API_KEY = "ollama"; // Ollama 本地不需要真实 Key，随便填
+
+    // 🔴 请确认此处名称与您 'ollama list' 中的名称一致
+    // 常见名称: "deepseek-r1:1.5b", "deepseek-coder:1.3b", "qwen:1.8b"
+    private static final String MODEL_NAME = "deepseek-r1:1.5b";
     // ===========================================
 
     public interface LLMCallback {
@@ -32,34 +38,22 @@ public class LLMService {
                 conn.setRequestProperty("Authorization", "Bearer " + API_KEY);
                 conn.setDoOutput(true);
 
-                // 🔴 针对 1.5B 模型的强化 Prompt
-                // 核心修改：
-                // 1. 强调 "不要排序" (Do not sort)
-                // 2. 明确 BinaryTree 和 BST 的区别
-                String systemPrompt =
-                        "你是一个严格的数据结构指令转换器。将用户的自然语言转换为标准指令。\n" +
-                                "规则：\n" +
-                                "1. 格式必须是: [结构类型]:[操作]:[数据]\n" +
-                                "2. 数据必须严格保持用户输入的顺序，**绝对禁止排序**。\n" +
-                                "3. 不要输出任何思考过程(<think>...</think>)，不要输出Markdown，只输出指令。\n\n" +
-                                "结构类型映射：\n" +
-                                "- 普通二叉树/二叉树 -> BINARYTREE\n" +
-                                "- 二叉搜索树/BST/排序树 -> BST\n" +
-                                "- 平衡树/AVL -> AVLTREE\n" +
-                                "- 哈夫曼树 -> HUFFMAN\n" +
-                                "- 链表 -> LINKEDLIST\n" +
-                                "- 栈 -> STACK\n\n" +
-                                "示例：\n" +
-                                "用户: '建立二叉树 5,3,7' -> 输出: BINARYTREE:BATCH_ADD:5,3,7\n" +
-                                "用户: '建立BST 5,3,7' -> 输出: BST:BATCH_ADD:5,3,7\n" +
-                                "用户: '入栈 1,2' -> 输出: STACK:PUSH:1,2\n" +
-                                "用户: '删除节点5' -> 输出: BST:DELETE:5";
+                // 针对小模型的精简 System Prompt
+                String systemPrompt = "你是一个指令生成器。用户输入自然语言，你只输出格式指令。\n" +
+                        "格式: [目标]:[动作]:[数据]\n" +
+                        "目标: LINKEDLIST, STACK, BST, AVL, HUFFMAN, BINARYTREE\n" +
+                        "动作: BATCH_ADD, ADD, DELETE, SEARCH, CLEAR\n" +
+                        "例子:\n" +
+                        "\"建树5,3\" -> BST:BATCH_ADD:5,3\n" +
+                        "\"删5\" -> BST:DELETE:5\n" +
+                        "禁止输出思考过程，禁止输出Markdown，禁止废话。";
 
+                // 构建 JSON Body
                 String jsonBody = String.format(
                         "{\"model\": \"%s\", \"messages\": [" +
                                 "{\"role\": \"system\", \"content\": \"%s\"}," +
                                 "{\"role\": \"user\", \"content\": \"%s\"}" +
-                                "], \"stream\": false, \"temperature\": 0.0}", // 温度设为0，最大程度保证确定性
+                                "], \"stream\": false, \"temperature\": 0.1}", // 低温度降低幻觉
                         MODEL_NAME,
                         escapeJson(systemPrompt),
                         escapeJson(userMessage)
@@ -74,52 +68,76 @@ public class LLMService {
                 if (responseCode == 200) {
                     try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
                         StringBuilder response = new StringBuilder();
-                        String line;
-                        while ((line = br.readLine()) != null) response.append(line);
+                        String responseLine;
+                        while ((responseLine = br.readLine()) != null) {
+                            response.append(responseLine.trim());
+                        }
 
+                        // 提取内容
                         String rawContent = extractContentFromJSON(response.toString());
-                        // 清洗 DeepSeek 的思考标签
+
+                        // 🔴 关键：清洗 DeepSeek R1 的 <think> 标签
                         String cleanContent = removeThinkTags(rawContent);
-                        // 清洗 Markdown 和可能的加粗符号
-                        cleanContent = cleanContent.replace("```", "").replace("**", "").trim();
+
+                        // 再次清洗可能存在的 Markdown 代码块符号
+                        cleanContent = cleanContent.replace("```", "").trim();
 
                         callback.onResponse(cleanContent);
                     }
                 } else {
-                    callback.onError("API Error: " + responseCode);
+                    callback.onError("Ollama 连接失败 (Code: " + responseCode + ")。请确认 Ollama 已运行。");
                 }
+
             } catch (Exception e) {
-                callback.onError("Network Error: " + e.getMessage());
+                e.printStackTrace();
+                callback.onError("网络错误: " + e.getMessage());
             }
         }).start();
     }
 
+    // 去除 <think>...</think> 内容
     private static String removeThinkTags(String content) {
+        // 匹配 <think>...</think> (包括换行)
         Pattern pattern = Pattern.compile("<think>.*?</think>", Pattern.DOTALL);
         Matcher matcher = pattern.matcher(content);
         return matcher.replaceAll("").trim();
     }
 
     private static String escapeJson(String str) {
-        return str.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+        return str.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
     }
 
     private static String extractContentFromJSON(String json) {
         try {
+            // 简单解析，适应 Ollama 返回的 OpenAI 格式
             String marker = "\"content\":\"";
             int startIndex = json.indexOf(marker);
-            if (startIndex == -1) return json;
+            if (startIndex == -1) return json; // 没找到，直接返回原文方便调试
             startIndex += marker.length();
+
+            // 寻找结束引号，注意处理转义引号
             int endIndex = startIndex;
             while (endIndex < json.length()) {
                 endIndex = json.indexOf("\"", endIndex);
                 if (endIndex == -1) break;
-                if (json.charAt(endIndex - 1) != '\\') break;
-                endIndex++;
+                if (json.charAt(endIndex - 1) != '\\') {
+                    break; // 找到未转义的结束引号
+                }
+                endIndex++; // 跳过转义引号
             }
+
             if (endIndex == -1) return json;
+
             String content = json.substring(startIndex, endIndex);
-            return content.replace("\\n", "\n").replace("\\r", "\r").replace("\\\"", "\"").replace("\\\\", "\\");
+            // 处理 JSON 转义字符
+            return content.replace("\\n", "\n")
+                    .replace("\\r", "\r")
+                    .replace("\\t", "\t")
+                    .replace("\\\"", "\"")
+                    .replace("\\\\", "\\");
         } catch (Exception e) {
             return json;
         }

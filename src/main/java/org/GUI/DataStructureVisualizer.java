@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 /**
  * 数据结构可视化模拟器 - 主类 (Ollama DeepSeek 1.5B 适配版)
  * 新增功能：支持直接输入DSL指令执行，无需经过AI模型
+ * 修改说明：修复链表删除问题，统一使用位置(索引)删除
  */
 public class DataStructureVisualizer extends JFrame {
     private JTextArea statusArea;
@@ -82,6 +83,7 @@ public class DataStructureVisualizer extends JFrame {
         logStatus("=== 系统初始化完成 ===");
         logStatus("提示1: 勾选'直接DSL'可直接输入指令（格式: 目标:动作:数据）");
         logStatus("提示2: 不勾选则使用AI解析自然语言");
+        logStatus("注意: 链表删除使用位置(索引)而不是值，例如 LINKEDLIST:DELETE:0 删除第一个节点");
     }
 
     // ================== AI 聊天逻辑 (增强版：支持直接DSL) ==================
@@ -157,7 +159,7 @@ public class DataStructureVisualizer extends JFrame {
         appendChat("System", "系统就绪。支持两种模式:\n" +
                 "1. AI模式(默认): 输入自然语言，如'建立BST 5,3,7'\n" +
                 "2. DSL模式(勾选复选框): 直接输入DSL指令，格式'目标:动作:数据'\n" +
-                "示例: BST:BATCH_ADD:5,3,7 或 LINKEDLIST:ADD:10");
+                "示例: BST:BATCH_ADD:5,3,7 或 LINKEDLIST:DELETE:0 (删除第一个节点)");
 
         return panel;
     }
@@ -166,7 +168,7 @@ public class DataStructureVisualizer extends JFrame {
         String helpText = "DSL (Domain Specific Language) 指令格式:\n\n" +
                 "基本格式: [目标]:[动作]:[数据]\n\n" +
                 "目标 (不区分大小写):\n" +
-                "  LINKEDLIST  - 链表\n" +
+                "  LINKEDLIST  - 链表 (重要: 删除使用位置索引，不是值)\n" +
                 "  STACK       - 栈\n" +
                 "  BST         - 二叉搜索树\n" +
                 "  BINARYTREE  - 普通二叉树\n" +
@@ -175,14 +177,16 @@ public class DataStructureVisualizer extends JFrame {
                 "动作 (不区分大小写):\n" +
                 "  BATCH_ADD   - 批量添加 (数据用逗号分隔)\n" +
                 "  ADD         - 添加单个节点\n" +
-                "  DELETE      - 删除节点\n" +
+                "  DELETE      - 删除节点 (链表使用位置索引，其他使用值)\n" +
                 "  SEARCH      - 查找节点\n" +
                 "  CLEAR       - 清空结构\n\n" +
                 "数据:\n" +
-                "  数值或逗号分隔的数值列表，如: 5,3,7 或 10\n\n" +
+                "  数值或逗号分隔的数值列表，如: 5,3,7 或 10\n" +
+                "  链表删除: 使用位置索引，如 0 (第一个节点)\n\n" +
                 "示例指令:\n" +
                 "  BST:BATCH_ADD:5,3,7,2,4\n" +
-                "  LINKEDLIST:ADD:10\n" +
+                "  LINKEDLIST:DELETE:0        (删除第一个节点)\n" +
+                "  LINKEDLIST:DELETE:2        (删除第三个节点)\n" +
                 "  STACK:BATCH_ADD:1,2,3\n" +
                 "  BINARYTREE:CLEAR:\n" +
                 "  AVL:SEARCH:25";
@@ -300,10 +304,43 @@ public class DataStructureVisualizer extends JFrame {
         // 切换到对应面板
         switchToPanel(panelKey);
 
+        // 对于链表删除的特殊处理
+        if (panelKey.equals("LinkedList") && action.contains("DELETE")) {
+            handleLinkedListDelete(data);
+            return;
+        }
+
         // 执行UI操作
         performUiAction(currentActivePanel, action, data);
 
         logStatus("执行DSL: [" + target + ":" + action + "] 数据: " + (data.isEmpty() ? "空" : data));
+    }
+
+    /**
+     * 处理链表删除的特殊情况
+     */
+    private void handleLinkedListDelete(String data) {
+        try {
+            if (data.isEmpty()) {
+                logStatus("错误: 链表删除需要指定位置索引");
+                appendChat("System", "错误: 链表删除需要指定位置索引，例如 LINKEDLIST:DELETE:0");
+                return;
+            }
+
+            int index = Integer.parseInt(data);
+
+            // 直接调用LinkedListPanel的删除方法
+            if (currentActivePanel instanceof LinkedListPanel) {
+                LinkedListPanel panel = (LinkedListPanel) currentActivePanel;
+                panel.deleteByIndex(index);
+                logStatus("执行链表删除: 位置 " + index);
+            } else {
+                logStatus("错误: 当前面板不是链表面板");
+            }
+        } catch (NumberFormatException e) {
+            logStatus("错误: 链表删除的位置必须是整数");
+            appendChat("System", "错误: 链表删除的位置必须是整数，例如 LINKEDLIST:DELETE:0");
+        }
     }
 
     /**
@@ -442,14 +479,15 @@ public class DataStructureVisualizer extends JFrame {
             if (action.contains("CLEAR")) return "清空栈";
         }
 
-        // 链表面板
+        // 链表面板特殊处理
         if (panel instanceof LinkedListPanel) {
-            if (action.contains("CLEAR")) return "清空链表";
+            // 注意：链表删除使用特殊处理，不通过按钮映射
+            if (action.contains("CLEAR")) return "清空";
         }
 
         // 通用映射
         if (action.contains("ADD")) return "添加节点";
-        if (action.contains("DELETE")) return "删除节点";
+        if (action.contains("DELETE")) return "删除(动画)"; // 修改这里，映射到正确的按钮文本
         if (action.contains("SEARCH")) {
             // 优先匹配动画查找 (BST)，其次普通查找
             if (findButtonByText(panel, "动画查找") != null) return "动画查找";
@@ -499,14 +537,14 @@ public class DataStructureVisualizer extends JFrame {
                 "   • 直接输入DSL指令: 目标:动作:数据\n" +
                 "   • 示例: BST:BATCH_ADD:5,3,7\n" +
                 "   • 点击'DSL语法帮助'查看完整语法\n\n" +
-                "=== 功能特性 ===\n" +
-                "• 支持6种数据结构可视化\n" +
-                "• 动画演示算法执行过程\n" +
-                "• 数据结构状态保存/加载\n" +
-                "• DSL指令历史记录\n\n" +
+                "=== 重要说明 ===\n" +
+                "• 链表删除使用位置(索引)，不是值！\n" +
+                "• 示例: LINKEDLIST:DELETE:0 删除第一个节点\n" +
+                "• 索引从0开始计数\n\n" +
                 "=== 常见指令示例 ===\n" +
                 "• BST:BATCH_ADD:5,3,7,2,4\n" +
-                "• LINKEDLIST:ADD:10\n" +
+                "• LINKEDLIST:DELETE:0 (删除第一个节点)\n" +
+                "• LINKEDLIST:DELETE:2 (删除第三个节点)\n" +
                 "• STACK:BATCH_ADD:1,2,3\n" +
                 "• BINARYTREE:CLEAR:\n" +
                 "• AVL:SEARCH:25";
@@ -682,7 +720,7 @@ public class DataStructureVisualizer extends JFrame {
         panels.put("HuffmanTree", huffmanTreePanel);
         panels.put("AVLTree", avlPanel);
 
-        tabbedPane.addTab("链表结构", createTabPanel(linkedListPanel, "线性表链式存储"));
+        tabbedPane.addTab("链表结构", createTabPanel(linkedListPanel, "线性表链式存储 - 注意: 删除使用位置(索引)而不是值"));
         tabbedPane.addTab("栈结构", createTabPanel(stackPanel, "LIFO栈结构"));
         tabbedPane.addTab("二叉树构建", createTabPanel(binaryTreePanel, "普通二叉树构建"));
         tabbedPane.addTab("二叉搜索树", createTabPanel(bstPanel, "BST查找与构建"));

@@ -11,6 +11,7 @@ import java.util.List;
 /**
  * 链表操作面板 (算法原理动画版)
  * 重点展示：指针（引用）的断开与重连过程
+ * 修改说明：所有删除操作都通过位置（索引）进行，不支持值删除
  */
 public class LinkedListPanel extends JPanel {
     private List<Node> nodes;
@@ -90,8 +91,8 @@ public class LinkedListPanel extends JPanel {
         indexField = new JTextField(5);
 
         JButton batchAddButton = new JButton("批量添加");
-        JButton insertButton = new JButton("插入(算法动画)");
-        JButton deleteButton = new JButton("删除(算法动画)");
+        JButton insertButton = new JButton("插入(动画)");
+        JButton deleteButton = new JButton("删除(动画)"); // 按钮文本保持原样
         JButton clearButton = new JButton("清空");
 
         batchAddButton.addActionListener(e -> batchAddNodes());
@@ -221,8 +222,11 @@ public class LinkedListPanel extends JPanel {
     private void commitAction() {
         if ("INSERT".equals(currentOperation)) {
             nodes.add(targetIndex, new Node(pendingValue));
+            log("✓ 插入完成: 位置 " + targetIndex + ", 值 " + pendingValue);
         } else if ("DELETE".equals(currentOperation)) {
+            int deletedValue = nodes.get(targetIndex).value;
             nodes.remove(targetIndex);
+            log("✓ 删除完成: 位置 " + targetIndex + ", 值 " + deletedValue);
         }
         stopAnimation();
         repaint();
@@ -333,7 +337,7 @@ public class LinkedListPanel extends JPanel {
             }
         }
 
-        // ---------------- 绘制“悬浮”的临时节点 (插入算法特有) ----------------
+        // ---------------- 绘制"悬浮"的临时节点 (插入算法特有) ----------------
         if ("INSERT".equals(currentOperation) && tempNode != null) {
             // 计算悬浮位置：在前驱和后继之间的下方
             int prevX = START_X + (targetIndex - 1) * (NODE_WIDTH + SPACING);
@@ -436,11 +440,28 @@ public class LinkedListPanel extends JPanel {
 
     // ================== 杂项 ==================
     private void batchAddNodes() {
-        String[] parts = valueField.getText().trim().split("[,，]");
-        for (String p : parts) {
-            try { nodes.add(new Node(Integer.parseInt(p.trim()))); } catch(Exception e){}
+        String input = valueField.getText().trim();
+        if(input.isEmpty()) {
+            log("错误: 请输入要添加的值");
+            return;
         }
+
+        String[] parts = input.split("[,，]");
+        int successCount = 0;
+
+        for(String p : parts) {
+            try {
+                int val = Integer.parseInt(p.trim());
+                nodes.add(new Node(val));
+                successCount++;
+            } catch(Exception e) {
+                log("警告: '" + p + "' 不是有效的整数，已跳过");
+            }
+        }
+
+        valueField.setText("");
         repaint();
+        log("批量添加完成: 成功添加 " + successCount + " 个节点");
     }
 
     private void clearList() {
@@ -453,6 +474,50 @@ public class LinkedListPanel extends JPanel {
     private void log(String msg) {
         logArea.append(msg + "\n");
         logArea.setCaretPosition(logArea.getDocument().getLength());
+    }
+
+    // ================== DSL支持方法 ==================
+
+    // 新增方法：通过位置和值插入节点（供DSL调用）
+    public void insertByIndex(int index, int value) {
+        if (index < 0 || index > nodes.size()) {
+            log("索引越界: " + index + " (链表大小: " + nodes.size() + ")");
+            return;
+        }
+
+        // 设置输入框并触发动画插入
+        valueField.setText(String.valueOf(value));
+        indexField.setText(String.valueOf(index));
+        startInsertAnim(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, ""));
+    }
+
+    // 新增方法：批量添加节点（供DSL调用）
+    public void batchAdd(String values) {
+        if (values == null || values.trim().isEmpty()) {
+            log("错误: 批量添加需要提供值列表");
+            return;
+        }
+
+        // 设置值输入框并触发批量添加
+        valueField.setText(values);
+        batchAddNodes();
+    }
+
+    // 新增方法：通过位置删除节点（供DSL调用）
+    public void deleteByIndex(int index) {
+        if (index < 0 || index >= nodes.size()) {
+            log("索引越界: " + index + " (链表大小: " + nodes.size() + ")");
+            return;
+        }
+
+        // 设置索引字段并触发动画删除
+        indexField.setText(String.valueOf(index));
+        startDeleteAnim(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, ""));
+    }
+
+    // 新增方法：清空链表（供DSL调用）
+    public void clearLinkedList() {
+        clearList();
     }
 
     private static class Node implements Serializable {
